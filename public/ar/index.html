@@ -1,19 +1,21 @@
 <!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BookMon AR — Shooting</title><meta itemprop="name" content="BookMon AR — Shooting"><meta name="twitter:title" content="BookMon AR — Shooting"><meta property="og:title" content="BookMon AR — Shooting"><meta property="og:site_name" content="BookMon AR"><meta name="description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta itemprop="description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta property="og:description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta name="twitter:description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><script crossorigin="anonymous" src="./external/runtime/runtime.js"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script></head><body><style>#boot-overlay {
     position: fixed; inset: 0; z-index: 5;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 18px; padding: 24px; box-sizing: border-box; text-align: center;
-    background: #111319; color: #fff;
+    background: #ffffff; opacity: 1;
+    transition: opacity 0.8s ease;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-  #boot-overlay .spinner {
-    width: 44px; height: 44px; border-radius: 50%;
-    border: 4px solid rgba(255, 255, 255, 0.2); border-top-color: #38ff9e;
-    animation: boot-spin 0.9s linear infinite;
+  #boot-overlay.fade-out { opacity: 0; pointer-events: none; }
+  /* Tiny loading label, bottom-left. */
+  #boot-overlay .loading {
+    position: absolute; left: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px; letter-spacing: 0.3px; color: #9aa0aa;
   }
-  #boot-overlay h1 { margin: 0; font-size: 20px; font-weight: 600; }
-  #boot-overlay p { margin: 0; font-size: 14px; line-height: 1.5; color: #aeb4c2; max-width: 320px; }
-  #boot-overlay .desktop-hint { display: none; color: #ffd257; }
-  @keyframes boot-spin { to { transform: rotate(360deg); } }
+  /* Desktop / unsupported guidance — centered, shown only on non-mobile. */
+  #boot-overlay .desktop-hint {
+    display: none; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); width: 320px; max-width: 80%;
+    margin: 0; text-align: center; color: #4a4f57; font-size: 14px; line-height: 1.6;
+  }
 
   /* Shot muzzle flash: a quick, clearly-visible full-screen flash on each shot.
      A bright center burst + warm edge glow reads as a gun muzzle flash. */
@@ -137,7 +139,7 @@
   #cap-camera img {
     width: 100%; height: 100%; display: block; border: none; outline: none;
     pointer-events: none; -webkit-user-drag: none; user-select: none;
-  }</style><div id="boot-overlay"><div class="spinner"></div><h1>BookMon AR 로딩 중…</h1><p>카메라 권한을 허용하면 AR 슈팅이 시작됩니다.</p><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="assets/cap_white.png" alt=""></div><div id="intro"><img id="intro-effect" src="assets/effect.png" alt=""> <img id="intro-start" src="assets/start.png" alt=""></div><div id="cap-bar"><div id="cap-timer"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="7" fill="none" stroke="#fff" stroke-width="2"></circle><line x1="8.8" y1="2.6" x2="15.2" y2="2.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="2.6" x2="12" y2="5.2" stroke="#fff" stroke-width="2"></line><line x1="16.8" y1="4.4" x2="19" y2="6.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="14" x2="12" y2="9.4" stroke="#fff" stroke-width="2" stroke-linecap="round"></line></svg> <span class="txt"><span id="cap-secs">10</span>초</span></div><div id="cap-gauge"><img id="cap-indicator" src="assets/indicator.png" alt=""> <img id="cap-gauge-img" src="assets/gage.png" alt=""></div><button id="cap-camera" type="button" aria-label="capture"><img src="assets/cam_normal.png" alt=""></button></div></div><script>// === iframe contract ===================================================
+  }</style><div id="boot-overlay"><span class="loading">loading...</span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="assets/cap_white.png" alt=""></div><div id="intro"><img id="intro-effect" src="assets/effect.png" alt=""> <img id="intro-start" src="assets/start.png" alt=""></div><div id="cap-bar"><div id="cap-timer"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="7" fill="none" stroke="#fff" stroke-width="2"></circle><line x1="8.8" y1="2.6" x2="15.2" y2="2.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="2.6" x2="12" y2="5.2" stroke="#fff" stroke-width="2"></line><line x1="16.8" y1="4.4" x2="19" y2="6.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="14" x2="12" y2="9.4" stroke="#fff" stroke-width="2" stroke-linecap="round"></line></svg> <span class="txt"><span id="cap-secs">10</span>초</span></div><div id="cap-gauge"><img id="cap-indicator" src="assets/indicator.png" alt=""> <img id="cap-gauge-img" src="assets/gage.png" alt=""></div><button id="cap-camera" type="button" aria-label="capture"><img src="assets/cam_normal.png" alt=""></button></div></div><script>// === iframe contract ===================================================
   // Report a result to the parent page:
   //   parent.postMessage({ source:'bookmon-ar', type, payload }, '*')
   // type: 'success' | 'fail' | 'close'
@@ -178,6 +180,17 @@
     }
   };
 
+  // Content is ready: fade the white boot overlay out, then remove it — the AR
+  // content shows through, appearing to fade in from white. Called from the ECS
+  // side (hide-on-ready) when REALITY_READY fires. Idempotent.
+  window.__bookmonReady = function () {
+    var el = document.getElementById('boot-overlay')
+    if (!el || el.__done) return
+    el.__done = true
+    el.classList.add('fade-out')
+    setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el) }, 850)
+  };
+
   // If a parent-supplied ?image= fails to load, end early as a failure.
   ;(function () {
     try {
@@ -193,13 +206,16 @@
   })()
 
   // Show the desktop guidance when this isn't a touch/mobile device (world AR is
-  // disabled on desktop by the camera config).
+  // disabled on desktop by the camera config). On mobile, arm a safety fallback so
+  // a missed REALITY_READY never traps the user on the white loading screen.
   ;(function () {
     var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
       (('ontouchstart' in window) && navigator.maxTouchPoints > 1)
     if (!isMobile) {
       var hint = document.querySelector('#boot-overlay .desktop-hint')
       if (hint) hint.style.display = 'block'
+    } else {
+      setTimeout(function () { if (window.__bookmonReady) window.__bookmonReady() }, 15000)
     }
   })()
 

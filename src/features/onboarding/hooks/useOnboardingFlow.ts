@@ -14,7 +14,7 @@ import type { SchoolSearchResult, PlayGroup } from "@/types";
 /**
  * 실전모드 온보딩 흐름의 상태·로직을 한곳에 모은 훅 (BM-102 → BM-103 → BM-104).
  * data 훅 4개(검색/모둠/게임/지도) 호출과 4개 핸들러·단계 판별을 담아
- * SchoolSearchScreen(뷰)은 "어느 단계를 그릴지"만 결정하도록 얇게 유지한다.
+ * OnboardingFlow(뷰)는 "어느 단계를 그릴지"만 결정하도록 얇게 유지한다.
  *
  * data 소스는 schoolService(Port)에만 의존 → mock/real 교체와 무관.
  */

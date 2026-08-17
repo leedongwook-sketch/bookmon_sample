@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
 
+// 이 라우트는 정적이다(입력 없이 고정 JSON). 정적 export(output: "export") 시 필수 선언이며,
+// 일반 빌드/dev 에는 영향이 없다(이미 정적이므로).
+export const dynamic = "force-static";
+
 // PWA 매니페스트 — "홈 화면에 추가" 시 주소창/툴바 없이 전체화면(standalone)으로 실행.
 // Next가 자동으로 /manifest.webmanifest 를 만들고 <link rel="manifest">를 삽입한다.
 export default function manifest(): MetadataRoute.Manifest {

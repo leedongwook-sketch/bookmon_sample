@@ -5,6 +5,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useArSession } from "./useArSession";
 import { ArOverlay } from "./ArOverlay";
 import { getMonstersInRange, ARRIVAL_RADIUS_M } from "./geo";
+import { isMobileDevice } from "@/lib/device";
 import { QuizLayer } from "@/features/quiz/QuizLayer";
 import { CollectionLayer } from "@/features/collection/CollectionLayer";
 import type { Game, GameLocation } from "@/types";
@@ -38,6 +39,7 @@ export function useEncounterFlow({
   const [encounterName, setEncounterName] = useState<string | null>(null); // 배너 표시 중인 몬스터명
   const [quizGame, setQuizGame] = useState<Game | null>(null); // 퀴즈 레이어 대상(포획 성공 몬스터)
   const [showCollection, setShowCollection] = useState(false); // 도감 레이어 표시
+  const [deviceBlocked, setDeviceBlocked] = useState(false); // PC 등 비모바일 → AR 불가 안내 표시
   const encounterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handledRef = useRef<Set<string>>(new Set()); // 이미 조우 처리한 몬스터(중복 트리거 방지)
   const openCollectionRef = useRef(false); // 정답 시 퀴즈 닫힘 후 도감 열기 예약
@@ -49,7 +51,15 @@ export function useEncounterFlow({
       setEncounterName(game.monster.koreanName);
       encounterTimer.current = setTimeout(() => {
         encounterTimer.current = null;
-        setEncounterName(null); // 배너 내리고 AR로 전환
+        setEncounterName(null); // 배너 내림
+
+        // AR 콘텐츠 요청 전 기기 체크 — 카메라·자이로가 필요해 스마트폰에서만 실행 가능.
+        // PC(비모바일)면 iframe(AR 번들)을 요청하지 않고 안내만 띄운다.
+        if (!isMobileDevice()) {
+          setDeviceBlocked(true);
+          return; // AR 요청 취소
+        }
+
         openArSession({
           // 몬스터 스프라이트 경로. mock은 thumbnail256Url이 null → "" 전달 →
           // ArOverlay가 image 파라미터를 생략 → 8thwall 번들 내장 bookmon1.png로 폴백(테스트).
@@ -109,6 +119,11 @@ export function useEncounterFlow({
       {/* AR 오버레이 — 조우 시 self-hosted 번들 iframe */}
       {session && <ArOverlay {...session} onClose={closeArSession} />}
 
+      {/* 비모바일(PC) 안내 — AR은 스마트폰에서만 실행 가능. 요청은 이미 취소됨. */}
+      {deviceBlocked && (
+        <MobileOnlyNotice onClose={() => setDeviceBlocked(false)} />
+      )}
+
       {/* 퀴즈 레이어 — 포획 성공 시 해당 몬스터 퀴즈 표시 */}
       {quizGame && (
         <QuizLayer
@@ -161,6 +176,44 @@ function DiscoveryBanner({ monster }: { monster: string }) {
     <div className="pointer-events-none absolute left-1/2 top-[max(1rem,var(--spacing-safe-t))] z-10 -translate-x-1/2">
       <div className="rounded-full border-2 border-navy bg-gold px-5 py-2 text-center text-base font-extrabold text-navy shadow-lg [text-shadow:0_1px_0_rgba(255,255,255,0.4)]">
         몬스터 발견! · {monster}
+      </div>
+    </div>
+  );
+}
+
+// 비모바일(PC) 안내 모달 — AR은 카메라·자이로가 필요해 스마트폰에서만 실행 가능.
+// 화면 전체를 덮는 딤 + 중앙 카드. 확인/딤 탭으로 닫는다.
+function MobileOnlyNotice({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-6"
+    >
+      <div
+        role="alertdialog"
+        aria-label="스마트폰에서만 실행 가능"
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-[min(88vw,340px)] flex-col items-center gap-3 rounded-[20px] border-2 border-navy bg-ivory px-6 py-7 text-center shadow-[0_14px_28px_rgba(0,0,0,0.45)]"
+      >
+        <div className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-navy bg-gold text-3xl">
+          📱
+        </div>
+        <p className="text-lg font-extrabold text-navy">
+          스마트폰에서만 실행 가능해요
+        </p>
+        <p className="text-sm leading-relaxed text-navy/70">
+          AR 몬스터 잡기는 카메라와 자이로 센서가 필요해요.
+          <br />
+          스마트폰으로 접속해 주세요.
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-2 flex h-11 w-full items-center justify-center rounded-full border-2 border-navy bg-gold text-base font-extrabold text-navy shadow-[inset_0_2px_0_rgba(255,255,255,0.5)] active:translate-y-[1px]"
+        >
+          확인
+        </button>
       </div>
     </div>
   );

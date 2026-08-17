@@ -25,6 +25,6 @@ export const MODE_OPTIONS: ModeOption[] = [
     label: "행사모드",
     variant: "gold",
     icon: "flag",
-    // next 없음 — 라우트 이동 대신 / 페이지 안에서 학교 선택 단계로 전환(SchoolSearchScreen)
+    // next 없음 — 라우트 이동 대신 / 페이지 안에서 학교 선택 단계로 전환(OnboardingFlow)
   },
 ];

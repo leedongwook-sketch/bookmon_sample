@@ -1,0 +1,64 @@
+name: Deploy to GitHub Pages
+
+# 배포 전용 — main 에 push 되거나 수동 실행 시 정적 export 를 빌드해 Pages 로 배포한다.
+# 로컬 소스는 그대로 두고, 이 워크플로우에서만 NEXT_PUBLIC_BASE_PATH 를 주입해
+# 서브경로(/bookmon_sample) 배포용으로 빌드한다.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Pages 배포에 필요한 권한.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시에 하나의 배포만.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  # 저장소 이름과 동일해야 함(https://<user>.github.io/<repo>/). 저장소명이 바뀌면 여기만 수정.
+  BASE_PATH: /bookmon_sample
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (static export + basePath)
+        env:
+          NEXT_PUBLIC_BASE_PATH: ${{ env.BASE_PATH }}
+        run: npm run build
+
+      - name: Prefix raw asset paths for subpath serving
+        run: node scripts/gh-pages-rewrite.mjs out "${{ env.BASE_PATH }}"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
