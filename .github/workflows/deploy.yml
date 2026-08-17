@@ -39,6 +39,12 @@ jobs:
       - name: Install deps
         run: npm ci
 
+      # Pages 최초 활성화까지 자동 처리(수동 Settings→Pages 불필요). Source=GitHub Actions.
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Build (static export + basePath)
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ env.BASE_PATH }}
