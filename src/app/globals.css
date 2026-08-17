@@ -1,26 +1,113 @@
 @import "tailwindcss";
 
+/* ────────────────────────────────────────────────────────────
+   북몬 디자인 토큰 (화면정의서 6장 공통정책 기준)
+   ──────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 톤앤매너 지시서 팔레트 (잠정) */
+  --background: #fff6e1; /* 아이보리 */
+  --foreground: #12213a; /* 네이비 텍스트 */
+
+  --navy: #12213a; /* 구조: 헤더·패널 테두리 */
+  --bluenavy: #1e3557; /* 구조 보조 */
+  --skyblue: #019cf4; /* 주 버튼 / 체험모드 */
+  --gold: #fec610; /* 강조·확정 / 행사모드, 성공 피드백 */
+  --cream: #f7e9c6; /* 배경(라이트) */
+  --ivory: #fff6e1; /* 배경(라이트, 밝음) */
+
+  --wood: #8b5a2b; /* (레거시, 일부 플레이스홀더 잔존) */
+  --success: #3bb54a;
+  --warning: #e23c3c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-navy: var(--navy);
+  --color-bluenavy: var(--bluenavy);
+  --color-skyblue: var(--skyblue);
+  --color-gold: var(--gold);
+  --color-cream: var(--cream);
+  --color-ivory: var(--ivory);
+  --color-wood: var(--wood);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* 안전영역 여백 토큰 (viewportFit=cover 대응) */
+  --spacing-safe-t: env(safe-area-inset-top);
+  --spacing-safe-r: env(safe-area-inset-right);
+  --spacing-safe-b: env(safe-area-inset-bottom);
+  --spacing-safe-l: env(safe-area-inset-left);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ────────────────────────────────────────────────────────────
+   반응형 / 가로모드 기반
+   - 가로(Landscape)가 기본이지만 세로에서도 왜곡 없이 렌더
+   - 가로 스크롤 금지, 이미지·미디어는 비율 유지(object-contain)
+   ──────────────────────────────────────────────────────────── */
+html,
+body {
+  height: 100%;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* 아동용 둥근 폰트(주아체) + 한글 폴백 */
+  font-family:
+    var(--font-jua), "Apple SD Gothic Neo", "Noto Sans KR", system-ui,
+    sans-serif;
+}
+
+/* 미디어는 항상 비율 유지 → 어떤 방향에서도 찌그러지지 않음 */
+img,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 최소 터치 타겟 48×48 (화면정의서 6장) */
+button,
+[role="button"] {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* 퀴즈 결과 마크(O/X) 팝업 — 작게 시작해 살짝 튕기며 커짐 */
+@keyframes quiz-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 오답 플래시 — 중앙에 X가 튕기며 나타났다 잠깐 유지 후 사라짐 */
+@keyframes quiz-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  32% {
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
 }
