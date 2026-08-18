@@ -32,3 +32,52 @@ export function isMobileDevice(): boolean {
   // iPadOS 13+ 위장 케이스(Macintosh인데 멀티터치) 보정.
   return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
 }
+
+// 세션당 1회만 프라이밍(같은 탭 내 재요청 방지). 세션 종료 후 재진입 시 다시 1회.
+const AR_PERMISSION_PRIMED_KEY = "bookmon-ar-perm-primed";
+
+interface PermissionRequestable {
+  requestPermission?: () => Promise<PermissionState | string>;
+}
+
+/**
+ * AR 권한(카메라·모션/방향)을 앱 진입 시 **한 번만** origin 레벨로 미리 허용한다.
+ *
+ * 배경: AR은 매번 새 iframe(8thwall)에서 카메라·모션을 요청 → 진입할 때마다 허용창이 뜬다.
+ * 여기서 최상위 문서(같은 origin)에서 먼저 권한을 확보해두면, 이후 같은-origin AR iframe이
+ * 그 권한을 물려받아 다시 묻지 않는다.
+ *
+ * 반드시 **사용자 제스처(클릭/터치) 핸들러 안**에서 호출해야 한다(권한 API 요건).
+ * PC(비모바일)에서는 AR을 막으므로 프라이밍하지 않는다(불필요한 카메라 창 방지).
+ * 거부/미지원은 조용히 넘어간다 — 실제 AR 진입 시 다시 안내된다.
+ */
+export async function primeArPermissions(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (!isMobileDevice()) return; // PC는 AR 차단 → 프라이밍 불필요
+  if (sessionStorage.getItem(AR_PERMISSION_PRIMED_KEY)) return; // 세션 내 1회
+  sessionStorage.setItem(AR_PERMISSION_PRIMED_KEY, "1"); // 재진입 중복 호출 방지(먼저 마킹)
+
+  // 카메라: 후면 카메라 스트림을 잠깐 열어 origin 권한을 확보한 뒤 즉시 정리.
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+    });
+    stream.getTracks().forEach((t) => t.stop());
+  } catch {
+    // 거부/미지원 — AR 진입 시 8thwall이 다시 요청.
+  }
+
+  // 모션·방향(iOS 13+ Safari만 requestPermission 존재). 나머지 브라우저는 권한창 없음.
+  const dme = DeviceMotionEvent as unknown as PermissionRequestable;
+  const doe = DeviceOrientationEvent as unknown as PermissionRequestable;
+  try {
+    if (typeof dme.requestPermission === "function") await dme.requestPermission();
+  } catch {
+    /* 무시 */
+  }
+  try {
+    if (typeof doe.requestPermission === "function") await doe.requestPermission();
+  } catch {
+    /* 무시 */
+  }
+}

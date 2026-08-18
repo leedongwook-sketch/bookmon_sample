@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
+import { primeArPermissions } from "@/lib/device";
 import { OnboardingScaffold } from "./components/OnboardingScaffold";
 import { CtaButton } from "./components/CtaButton";
 import { ModeCard } from "./components/ModeCard";
@@ -40,6 +41,9 @@ export function OnboardingFlow() {
   const flow = useOnboardingFlow();
 
   const handleSelectMode = (option: ModeOption) => {
+    // 앱 첫 진입 제스처에서 AR 권한(카메라·모션)을 1회 미리 허용 → 이후 AR 진입 시 재요청 없음.
+    // (모바일에서만, 세션당 1회. 실전은 이 시점 이후 학교/모둠을 거쳐도 이미 프라이밍됨.)
+    void primeArPermissions();
     setMode(option.mode); // 선택 결과를 전역 상태(+localStorage)에 저장
     if (option.next) {
       router.push(option.next); // 체험모드 → 지도로 이동
