@@ -3,7 +3,6 @@
 책 속 몬스터를 찾아라! 위치기반 AR 독서 활동 게임의 프론트엔드.
 
 - 온보딩(모드/학교/모둠 선택) → 지도(2D/3D) → 몬스터 발견 → AR 체험 → 도감
-- 데모/테스트 배포: **https://leedongwook-sketch.github.io/bookmon_sample/**
 
 ---
 
