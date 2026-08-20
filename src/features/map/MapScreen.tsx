@@ -186,7 +186,8 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
         3D 지도
       </Link>
 
-      {/* 조우 오버레이 — 배너/AR/퀴즈/도감 (공용 훅에서 렌더). DOM 오버레이라 지도 위에 얹힘. */}
+      {/* 조우 오버레이 — 흰 전환/기기안내/퀴즈/도감 (공용 훅에서 렌더). AR은 /ar/shooting/ 전체 이동.
+          DOM 오버레이라 지도 위에 얹힘. */}
       {encounterLayers}
 
       {/* 미니맵 — 오른쪽 아래 고정. 지도 이미지 비율 박스에 몬스터/내 위치를 점으로 표시. */}

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync-ar": "bash scripts/sync-ar.sh",
+    "sync-ar": "node scripts/sync-ar.mjs",
     "build:ar": "npm run sync-ar && npm run build"
   },
   "dependencies": {

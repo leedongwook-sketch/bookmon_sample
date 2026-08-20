@@ -8,6 +8,7 @@ interface OnboardingScaffoldProps {
   children: ReactNode; // 패널 본문 (버튼/입력 등 화면별 요소)
   footer?: ReactNode; // 패널 하단 모서리 중앙에 걸치는 CTA(예: "다음") — 없으면 미표시
   onBack?: () => void; // 있으면 좌상단 뒤로 버튼 렌더 → 이전 단계로. 없으면 미표시(예: 모드선택 BM-101)
+  backgroundUrl?: string; // 온보딩 배경(랜덤). 상위(OnboardingFlow)가 진입 시 1회 골라 전달.
 }
 
 /**
@@ -23,6 +24,7 @@ export function OnboardingScaffold({
   children,
   footer,
   onBack,
+  backgroundUrl,
 }: OnboardingScaffoldProps) {
   return (
     <div
@@ -49,12 +51,12 @@ export function OnboardingScaffold({
         </button>
       )}
 
-      {/* 배경: 학교 실사(블러) + 가독성용 어두운 오버레이 */}
-      {ASSETS.introBackground && (
+      {/* 배경: 온보딩 배경(랜덤 선택본) + 가독성용 어두운 오버레이 */}
+      {backgroundUrl && (
         <div
           className="fixed inset-0 z-0"
           style={{
-            backgroundImage: `url(${ASSETS.introBackground})`,
+            backgroundImage: `url(${backgroundUrl})`,
             backgroundSize: "100% 100%",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",

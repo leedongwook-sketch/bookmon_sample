@@ -2,17 +2,27 @@
 // 디자인 확정 전까지 모든 소스는 null → <AssetImage>가 플레이스홀더로 대체.
 // 디자인이 나오면 "이 파일 한 곳"만 채우면 전체 화면에 반영된다.
 
-// 온보딩 배경 후보(온보딩·메뉴 화면 전용).
-// dg1: 밝은 크림/아이보리 톤 서재 / dg2: 진한 네이비/골드 톤 판타지 서재.
-// introBackground가 가리키는 값 한 줄만 바꾸면 dg1↔dg2 전환된다.
-const ONBOARDING_BACKGROUNDS = {
-  dg1: "/images/onboard_bg_1.webp",
-  dg2: "/images/onboard_bg_2.webp",
-} as const;
+// 온보딩 배경 후보(온보딩 화면 전용) — 진입할 때마다 이 중 하나를 랜덤으로 표시.
+// bookmon_design/기본배경/bg1~6.png 를 WebP로 경량화 임포트한 것.
+export const ONBOARDING_BACKGROUNDS = [
+  "/images/onboarding/bg1.webp",
+  "/images/onboarding/bg2.webp",
+  "/images/onboarding/bg3.webp",
+  "/images/onboarding/bg4.webp",
+  "/images/onboarding/bg5.webp",
+  "/images/onboarding/bg6.webp",
+] as const;
+
+// 온보딩 배경 하나를 랜덤 선택. 클라이언트 이벤트/마운트 시점에 1회 호출해 세션 내 고정한다
+// (렌더마다 호출하면 배경이 깜빡이므로 useState 초기화 등으로 한 번만 뽑을 것).
+export function pickOnboardingBackground(): string {
+  return ONBOARDING_BACKGROUNDS[
+    Math.floor(Math.random() * ONBOARDING_BACKGROUNDS.length)
+  ];
+}
 
 export interface AssetRegistry {
   logo: string | null; // BOOKMON 로고
-  introBackground: string | null; // 인트로 배경(온보딩·메뉴 화면)
 
   // 실행모드 버튼 — 벡터(SVG). 라벨이 도형에 포함(baked), 확대해도 안 깨짐.
   btnModePractice: string; // 체험모드(스카이블루)
@@ -36,7 +46,6 @@ export interface AssetRegistry {
 
 export const ASSETS: AssetRegistry = {
   logo: "/images/main_logo.webp", // 마스터 캐릭터 + BOOKMON 로고(원본 4.9MB SVG→래스터 WebP 경량화, 1024px 알파)
-  introBackground: ONBOARDING_BACKGROUNDS.dg2, // 기본: 진한 네이비/골드 톤
 
   btnModePractice: "/images/btn_mode_practice.svg",
   btnModeEvent: "/images/btn_mode_event.svg",

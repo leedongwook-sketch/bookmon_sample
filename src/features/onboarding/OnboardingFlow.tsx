@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
+import { pickOnboardingBackground } from "@/constants/assets";
 import { OnboardingScaffold } from "./components/OnboardingScaffold";
 import { CtaButton } from "./components/CtaButton";
 import { ModeCard } from "./components/ModeCard";
@@ -37,6 +38,8 @@ export function OnboardingFlow() {
   const router = useRouter();
   const setMode = useGameStore((s) => s.setMode);
   const [step, setStep] = useState<TopStep>("mode-select");
+  // 온보딩 배경을 진입 시 1회 랜덤 선택해 세션 내 고정(단계 전환에도 유지, 깜빡임 없음).
+  const [background] = useState(pickOnboardingBackground);
   const flow = useOnboardingFlow();
 
   const handleSelectMode = (option: ModeOption) => {
@@ -54,6 +57,7 @@ export function OnboardingFlow() {
       banner={view.banner}
       footer={view.footer}
       onBack={view.onBack}
+      backgroundUrl={background}
     >
       {view.body}
     </OnboardingScaffold>

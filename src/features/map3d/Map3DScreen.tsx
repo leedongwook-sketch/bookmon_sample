@@ -99,7 +99,8 @@ function Map3DView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
       {/* ⚠ 테스트 전용: 상단 안내 배너 */}
       <TestModeBanner />
 
-      {/* 조우 오버레이 — 배너/AR/퀴즈/도감(공용 훅). DOM 오버레이라 Canvas 위에 그대로 얹힘. */}
+      {/* 조우 오버레이 — 흰 전환/기기안내/퀴즈/도감(공용 훅). AR은 /ar/shooting/ 전체 이동.
+          DOM 오버레이라 Canvas 위에 그대로 얹힘. */}
       {encounterLayers}
 
       {/* 우상단: 2D 지도로 복귀 (작은 버튼) */}

@@ -40,7 +40,19 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# 로컬 HTTPS dev 인증서 (--experimental-https)
 certificates
+cert.pem
+key.pem
 
+# ── 문서: README.md만 커밋, 그 외 문서(설계서·기획·계획 .md/.pdf)는 제외 ──
 *.md
+!README.md
 *.pdf
+
+# ── Claude / AI 에이전트 로컬 파일 ──
+.claude/
+
+# ── AR 번들: build:ar(8thwall) 생성물 — 커밋하지 않음 ──
+#    다른 PC에선 bookmon_ar 를 형제 폴더로 받아 `npm run build:ar` 로 생성한다.
+/public/ar/
