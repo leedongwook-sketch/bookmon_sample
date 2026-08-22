@@ -1,0 +1,695 @@
+<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BookMon AR — Shooting</title><meta itemprop="name" content="BookMon AR — Shooting"><meta name="twitter:title" content="BookMon AR — Shooting"><meta property="og:title" content="BookMon AR — Shooting"><meta property="og:site_name" content="BookMon AR"><meta name="description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta itemprop="description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta property="og:description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><meta name="twitter:description" content="World-tracking AR shooting game: aim the crosshair at BookMon monsters and tap to hit."><script crossorigin="anonymous" src="./external/runtime/runtime.js"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script><script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script></head><body><style>#boot-overlay {
+    position: fixed; inset: 0; z-index: 5;
+    background: #ffffff; opacity: 1;
+    transition: opacity 0.8s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  #boot-overlay.fade-out { opacity: 0; pointer-events: none; }
+  /* Tiny loading label, bottom-left. */
+  #boot-overlay .loading {
+    position: absolute; left: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    font-size: 11px; letter-spacing: 0.3px; color: #9aa0aa;
+  }
+  /* Desktop / unsupported guidance — centered, shown only on non-mobile. */
+  #boot-overlay .desktop-hint {
+    display: none; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%); width: 320px; max-width: 80%;
+    margin: 0; text-align: center; color: #4a4f57; font-size: 14px; line-height: 1.6;
+  }
+
+  /* Shot muzzle flash: a quick, clearly-visible full-screen flash on each shot.
+     A bright center burst + warm edge glow reads as a gun muzzle flash. */
+  #shot-flash {
+    position: fixed; inset: 0; z-index: 40; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(circle at center, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.0) 42%),
+      radial-gradient(circle at center, rgba(255,180,60,0.0) 55%, rgba(255,150,30,0.55) 100%);
+  }
+  #shot-flash.fire { animation: shot-flash 200ms ease-out; }
+  @keyframes shot-flash { 0% { opacity: 1; } 60% { opacity: 0.7; } 100% { opacity: 0; } }
+
+  /* Camera shutter: a crisp, pure-white full-screen flash played on each capture
+     (the "찰칵" photo snap that confirms a successful catch). */
+  #shutter-flash {
+    position: fixed; inset: 0; z-index: 41; pointer-events: none; opacity: 0;
+    background: #ffffff;
+  }
+  #shutter-flash.snap { animation: shutter-snap 220ms ease-out; }
+  @keyframes shutter-snap { 0% { opacity: 0; } 14% { opacity: 0.92; } 100% { opacity: 0; } }
+
+  /* Camera shake: applied to the AR canvas. The slight scale hides the edges
+     that the translation would otherwise reveal. */
+  canvas.cam-shake { animation: cam-shake 240ms ease-in-out; }
+  canvas.cam-shake-strong { animation: cam-shake-strong 300ms ease-in-out; }
+  @keyframes cam-shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-7px, 5px) scale(1.05); }
+    45% { transform: translate(7px, -5px) scale(1.05); }
+    70% { transform: translate(-5px, -4px) scale(1.05); }
+    88% { transform: translate(4px, 4px) scale(1.04); }
+  }
+  @keyframes cam-shake-strong {
+    0%, 100% { transform: translate(0, 0); }
+    18% { transform: translate(-12px, 8px) scale(1.08); }
+    38% { transform: translate(11px, -9px) scale(1.08); }
+    58% { transform: translate(-9px, -6px) scale(1.07); }
+    80% { transform: translate(8px, 7px) scale(1.06); }
+  }
+
+  /* ===== Game UI (HTML overlay above the AR canvas) ===================== */
+  /* Driven by window.__bookmonUI from the game (shooting-game.ts). Two phases:
+     'kill' (shoot the health gauge) and 'capture' (indicator mini-game). */
+  #game-ui {
+    position: fixed; inset: 0; z-index: 20; pointer-events: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  #xh-kill, #xh-cap { display: none; }
+  #game-ui[data-phase="kill"] #xh-kill { display: block; }
+  /* 'aim' — the intro phase: ONLY the crosshair (조준점) is shown while we wait
+     for a monster to enter the frame and run the countdown. */
+  #game-ui[data-phase="aim"] #xh-cap { display: block; }
+  #game-ui[data-phase="capture"] #xh-cap { display: block; }
+  #game-ui[data-phase="capture"] #cap-bar { display: flex; }
+  #game-ui[data-phase="capture"] #cap-progress { display: flex; }
+
+  /* Kill-phase crosshair (sniper reticle), centered. */
+  #xh-kill {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 150px; height: auto;
+  }
+
+  /* Capture-phase reticle: viewfinder corner brackets + center circle. */
+  #xh-cap {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(80vw, 460px); height: min(54vh, 420px);
+  }
+  #xh-cap .corner { position: absolute; width: 30px; height: 30px; border: 3px solid #fff; }
+  #xh-cap .corner.tl { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+  #xh-cap .corner.tr { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+  #xh-cap .corner.bl { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+  #xh-cap .corner.br { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+  #xh-cap-center {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 120px; height: auto;
+  }
+  /* Quick reticle pop on each capture (paired with the shutter flash). */
+  #xh-cap.snap { animation: cap-snap 220ms ease-out; }
+  @keyframes cap-snap {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    35% { transform: translate(-50%, -50%) scale(1.12); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* ===== Intro sequence (crosshair-only → discovery → 3·2·1 → 시작!) ======
+     1) 'aim' phase shows ONLY the crosshair.
+     2) When a monster enters the frame, #discover-fx (effect.png) bursts AT the
+        monster's on-screen position ("발견!" feel).
+     3) A 3·2·1 countdown, then the #start-banner (start.png, "시작!").
+     4) The capture bar appears and the mini-game begins. */
+  /* Camera-centered discovery burst — big, screen-filling flash (not tied to the
+     monster's position) so the "발견!" moment reads strongly. */
+  #discover-fx {
+    position: fixed; left: 50%; top: 50%; width: min(120vw, 820px); height: auto;
+    transform: translate(-50%, -50%) scale(0.4); opacity: 0; pointer-events: none;
+    display: none; z-index: 22;
+  }
+  #discover-fx.play { display: block; animation: discover-fx 950ms ease-out forwards; }
+  @keyframes discover-fx {
+    0%   { transform: translate(-50%, -50%) rotate(0deg) scale(0.4); opacity: 0; }
+    25%  { opacity: 1; }
+    60%  { transform: translate(-50%, -50%) rotate(140deg) scale(1.15); opacity: 0.9; }
+    100% { transform: translate(-50%, -50%) rotate(210deg) scale(1.5); opacity: 0; }
+  }
+
+  #countdown {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(74vw, 320px); height: auto; display: none; z-index: 23; pointer-events: none;
+  }
+  #countdown.show { display: block; animation: count-pop 1s ease-out; }
+  @keyframes count-pop {
+    0%   { transform: translate(-50%, -50%) scale(0.35); opacity: 0; }
+    22%  { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+    62%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }
+  }
+
+  #start-banner {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(74vw, 320px); height: auto; display: none; z-index: 23;
+  }
+  #start-banner.play { display: block; animation: start-banner 900ms ease-out forwards; }
+  @keyframes start-banner {
+    0%   { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+    25%  { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+    70%  { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+  }
+
+  /* Capture progress dots (top-center): one per required capture, filled green
+     as each catch lands. The required count is random (1..3) per run. */
+  #cap-progress {
+    position: fixed; left: 50%; top: calc(14px + env(safe-area-inset-top, 0px));
+    transform: translateX(-50%); display: none; gap: 9px; align-items: center;
+    z-index: 21; pointer-events: none;
+  }
+  #cap-progress .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3); border: 2px solid rgba(255, 255, 255, 0.75);
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+  }
+  #cap-progress .dot.done {
+    background: #38ff9e; border-color: #38ff9e; box-shadow: 0 0 8px rgba(56, 255, 158, 0.9);
+  }
+
+  /* Capture bottom bar: timer (left), gauge+indicator (center), camera (right). */
+  #cap-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; display: none;
+    align-items: center; gap: 12px;
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box; pointer-events: none;
+  }
+  #cap-timer {
+    display: flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    background: #16213a; color: #fff; padding: 8px 18px 8px 15px; border-radius: 999px;
+    font-weight: 800; font-size: 18px; line-height: 1; white-space: nowrap;
+  }
+  #cap-timer .ic { width: 24px; height: 24px; display: block; flex: 0 0 auto; }
+  #cap-timer .txt { display: inline-block; }
+  /* CSS-drawn capture gauge (replaces gage.png so the green catch zone can be
+     sized/positioned exactly, and shrunk cleanly per capture). #cap-gauge is the
+     un-clipped flex slot so the indicator can float above the bar; #cap-track is
+     the rounded, clipped bar; #cap-green is the dynamic catch zone. */
+  #cap-gauge { position: relative; flex: 1 1 auto; min-width: 0; height: 28px; }
+  /* CSS reproduction of ar_gage.png: thick navy pill rim, burnt-orange edges
+     easing to yellow toward the centre, and a diagonal glossy sheen. The green
+     centre band is drawn separately (#cap-green) so it can shrink per capture. */
+  #cap-track {
+    position: absolute; inset: 0; border-radius: 999px; overflow: hidden;
+    /* Pill rim via inset shadow (not `border`) so #cap-green's % coords share the
+       same full-width box as #cap-indicator — keeps the zone and indicator aligned. */
+    box-shadow: inset 0 0 0 3px #17274a;
+    background: linear-gradient(90deg,
+      #e8620f 0%, #ff8616 10%, #ffb01a 22%, #ffd21a 30%, #ffe21c 34%,
+      #ffe21c 66%, #ffd21a 70%, #ffb01a 78%, #ff8616 90%, #e8620f 100%);
+  }
+  /* Diagonal glossy stripes across the whole bar (matches the artwork's sheen). */
+  #cap-track::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: repeating-linear-gradient(118deg,
+      rgba(255, 255, 255, 0.16) 0 9px, rgba(255, 255, 255, 0) 9px 24px);
+  }
+  /* Catch zone = the centre green band from ar_gage.png, drawn dynamically. Navy
+     side edges reproduce the artwork's segment dividers and move with the zone;
+     inset from top/bottom by the rim thickness so the pill outline stays intact. */
+  #cap-green {
+    position: absolute; top: 3px; bottom: 3px; left: 33.6%; width: 32.8%;
+    box-sizing: border-box;
+    border-left: 3px solid #17274a; border-right: 3px solid #17274a;
+    background: linear-gradient(90deg, #33a62b 0%, #57cf3a 48%, #8ce85a 100%);
+    transition: left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  /* Shrink emphasis: a quick brighten + green glow so each shrink reads clearly. */
+  #cap-green.shrink { animation: green-shrink 0.6s ease-out; }
+  @keyframes green-shrink {
+    0%   { filter: brightness(1.7); box-shadow: 0 0 12px 2px rgba(120, 255, 160, 0.95); }
+    70%  { box-shadow: 0 0 6px 1px rgba(120, 255, 160, 0.6); }
+    100% { filter: brightness(1); box-shadow: none; }
+  }
+  #cap-indicator {
+    position: absolute; bottom: 100%; left: 4%; width: 16px; height: auto;
+    transform: translate(-50%, 8px); will-change: left; z-index: 2;
+  }
+  #cap-indicator.miss { animation: ind-miss 0.28s ease-out; }
+  @keyframes ind-miss { 0%,100% { filter: none; } 50% { filter: drop-shadow(0 0 5px #ff5a5a); } }
+  #cap-camera {
+    flex: 0 0 auto; pointer-events: auto; border: none; background: none; padding: 0;
+    width: 62px; height: 62px; outline: none; -webkit-appearance: none; appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none; user-select: none;
+  }
+  /* Kill the focus/active ring entirely (some browsers draw a pink/dotted
+     outline around the tapped camera button). */
+  #cap-camera:focus,
+  #cap-camera:focus-visible,
+  #cap-camera:active { outline: none; border: none; box-shadow: none; }
+  #cap-camera img {
+    width: 100%; height: 100%; display: block; border: none; outline: none;
+    pointer-events: none; -webkit-user-drag: none; user-select: none;
+  }
+
+  /* ===== 8th Wall motion-sensor prompt restyle ==========================
+     The engine (xr.js) injects its own permission prompt when it can't preempt
+     motion access. Its markup is fixed:
+       .prompt-box-8w > p + .prompt-button-container-8w > .prompt-button-8w[.button-primary-8w]
+     The engine's own <style> uses single-class selectors, so !important here
+     wins regardless of injection order. (Text is relabeled via JS below.)
+     To REVERT: delete this block and the `customize 8th Wall prompt` script. */
+  .prompt-box-8w {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    width: 18em !important; max-width: 86% !important;
+    border-radius: 16px !important; padding: 22px 18px 16px !important;
+    color: #16213a !important; font-size: 16px !important;
+    background-color: #ffffff !important;
+    filter: none !important; box-shadow: 0 10px 34px rgba(0, 0, 0, 0.28) !important;
+  }
+  .prompt-box-8w p { margin: 2px 6px 18px !important; line-height: 1.55 !important; font-weight: 600 !important; }
+  .prompt-button-container-8w { display: flex !important; gap: 10px !important; }
+  .prompt-button-8w {
+    flex: 1 0 0 !important; border-radius: 999px !important; padding: 12px 0 !important;
+    font-weight: 700 !important; border: none !important; outline: none !important;
+    background-color: #e7e9ef !important; color: #3a4152 !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  .prompt-button-8w:not(:last-child) { margin-right: 0 !important; }
+  .prompt-button-8w.button-primary-8w { background-color: #16213a !important; color: #ffffff !important; }</style><div id="boot-overlay"><span class="loading">loading...</span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-flash"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="assets/cap_white.png" alt=""></div><img id="discover-fx" src="assets/effect.png" alt=""> <img id="countdown" src="assets/start_3.png" alt=""> <img id="start-banner" src="assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-timer"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="7" fill="none" stroke="#fff" stroke-width="2"></circle><line x1="8.8" y1="2.6" x2="15.2" y2="2.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="2.6" x2="12" y2="5.2" stroke="#fff" stroke-width="2"></line><line x1="16.8" y1="4.4" x2="19" y2="6.6" stroke="#fff" stroke-width="2" stroke-linecap="round"></line><line x1="12" y1="14" x2="12" y2="9.4" stroke="#fff" stroke-width="2" stroke-linecap="round"></line></svg> <span class="txt"><span id="cap-secs">10</span>초</span></div><div id="cap-gauge"><img id="cap-indicator" src="assets/indicator.png" alt=""><div id="cap-track"><div id="cap-green"></div></div></div><button id="cap-camera" type="button" aria-label="capture"><img src="assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
+  // World-tracking AR needs the gyroscope/accelerometer. On iOS 13+ that
+  // permission can only be requested from inside a user gesture, so the engine
+  // otherwise shows its own "AR requires access to device motion sensors" prompt
+  // to obtain that gesture. By requesting it ourselves on the FIRST tap (which is
+  // the landing-page start tap), the permission is already granted by the time
+  // the engine needs it, so the engine's separate prompt is skipped.
+  ;(function () {
+    var DME = window.DeviceMotionEvent
+    var DOE = window.DeviceOrientationEvent
+    var askMotion = DME && typeof DME.requestPermission === 'function'
+    var askOrient = DOE && typeof DOE.requestPermission === 'function'
+    if (!askMotion && !askOrient) return   // Android / desktop: no gate to preempt
+
+    // ---- Detect an already-granted state so we DON'T request again ---------
+    // iOS Safari has no query API for motion permission (navigator.permissions
+    // doesn't support it). But when permission is already granted, motion/orient
+    // events fire; when not, they never fire. So we listen passively: a real
+    // reading means "already granted" → skip requestPermission (and its dialog).
+    var granted = false
+    function markGranted() { granted = true; stopProbe() }
+    function onMotion(e) {
+      if (e && (e.accelerationIncludingGravity || e.acceleration || e.rotationRate)) markGranted()
+    }
+    function onOrient(e) {
+      if (e && (e.alpha !== null || e.beta !== null || e.gamma !== null)) markGranted()
+    }
+    function stopProbe() {
+      window.removeEventListener('devicemotion', onMotion)
+      window.removeEventListener('deviceorientation', onOrient)
+    }
+    window.addEventListener('devicemotion', onMotion)
+    window.addEventListener('deviceorientation', onOrient)
+    // Best-effort spec query (some Chromium browsers support it; iOS throws).
+    try {
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name: 'accelerometer'})
+          .then(function (s) { if (s && s.state === 'granted') granted = true })
+          .catch(function () {})
+      }
+    } catch (e) { /* no-op */ }
+
+    // ---- Request on the first gesture, only if not already granted ---------
+    var done = false
+    function request() {
+      if (done) return
+      done = true
+      document.removeEventListener('pointerdown', request, true)
+      document.removeEventListener('touchend', request, true)
+      document.removeEventListener('click', request, true)
+      if (granted) { stopProbe(); return }   // already granted → no call, no dialog
+      // Not known-granted → request now. If it turns out already granted, iOS
+      // resolves 'granted' silently (no dialog); otherwise the dialog shows once.
+      try { if (askMotion) DME.requestPermission().catch(function () {}) } catch (e) {}
+      try { if (askOrient) DOE.requestPermission().catch(function () {}) } catch (e) {}
+      stopProbe()
+    }
+    // Capture phase so we run on the first gesture before other handlers.
+    document.addEventListener('pointerdown', request, true)
+    document.addEventListener('touchend', request, true)
+    document.addEventListener('click', request, true)
+  })()
+
+  // === customize 8th Wall prompt ==========================================
+  // If the engine still shows its motion-sensor prompt (.prompt-box-8w), relabel
+  // its text to Korean. Styling is handled by the CSS block above.
+  // To REVERT: delete this IIFE and the `.prompt-box-8w` CSS block.
+  ;(function () {
+    function apply(box) {
+      if (!box || box.__bmDone) return
+      box.__bmDone = true
+      var p = box.querySelector('p')
+      if (p) p.textContent = 'AR을 시작하려면 기기의 모션 센서 접근 권한이 필요합니다.'
+      var btns = box.querySelectorAll('.prompt-button-8w')
+      if (btns[0]) btns[0].textContent = '취소'
+      if (btns[1]) btns[1].textContent = '계속'
+    }
+    function scan(node) {
+      if (!node || node.nodeType !== 1) return
+      if (node.classList && node.classList.contains('prompt-box-8w')) { apply(node); return }
+      if (node.querySelector) { var b = node.querySelector('.prompt-box-8w'); if (b) apply(b) }
+    }
+    scan(document.querySelector('.prompt-box-8w'))   // in case it already exists
+    try {
+      var mo = new MutationObserver(function (muts) {
+        for (var i = 0; i < muts.length; i++) {
+          var added = muts[i].addedNodes
+          for (var j = 0; j < added.length; j++) scan(added[j])
+        }
+      })
+      mo.observe(document.body, {childList: true, subtree: true})
+    } catch (e) { /* no-op */ }
+  })()
+
+  // === Host-app contract (top-level page navigation) =====================
+  // This build runs as a FULL PAGE (not an iframe) entered at /ar/shooting/ with
+  // NO URL query. All input comes from the host via sessionStorage:
+  //   sessionStorage['bookmon-ar-req'] = { mid, nonce, ts, image, return }
+  //     image  : sprite to fight (empty/absent → bundled fallback; read by config.ts)
+  //     return : path to navigate to on finish (same-origin relative only)
+  //     nonce  : echoed back in the result
+  //     mid/ts : reference only
+  // On finish we DO NOT postMessage. Instead we record the result and navigate:
+  //   sessionStorage['bookmon-ar-res'] = {ar:'success'|'fail'|'close'[, nonce]}
+  //   location.assign(<return>)
+
+  // Read + parse the host request record once (null when absent/unparseable).
+  var __bmReq = (function () {
+    try {
+      var raw = sessionStorage.getItem('bookmon-ar-req')
+      return raw ? JSON.parse(raw) : null
+    } catch (e) { return null }
+  })()
+
+  // The nonce to echo back (null when absent).
+  function bmReqNonce() {
+    return (__bmReq && __bmReq.nonce != null) ? __bmReq.nonce : null
+  }
+  // The validated return path. OPEN-REDIRECT GUARD: only a same-origin, root-
+  // relative path is allowed (starts with a single '/', not '//' or '/\', no
+  // leading whitespace/control chars). Absolute or protocol-relative URLs
+  // (http…, //host, /\host) are rejected → '' (no navigation).
+  function bmReturnPath() {
+    var ret = __bmReq && __bmReq.return
+    if (typeof ret !== 'string') return ''
+    var c0 = ret.charCodeAt(0)
+    if (isNaN(c0) || c0 <= 32) return ''    // reject empty / leading ws/control chars
+    if (!/^\/(?![\/\\])/.test(ret)) return ''         // must be /path, not //… or /\…
+    return ret
+  }
+
+  // Stop the AR engine and free device resources: releases the camera stream,
+  // halts the render loop, and clears our helper interval. Safe to call twice.
+  window.__bookmonStopAR = function () {
+    try { if (window.__fixVideosInterval) { clearInterval(window.__fixVideosInterval); window.__fixVideosInterval = null } } catch (e) {}
+    try { if (window.XR8 && XR8.stop) XR8.stop() } catch (e) {}
+  };
+
+  // === Terminal end of the experience (success / fail / close) ===========
+  // Records the result to sessionStorage, tears the AR session down, then
+  // navigates to the return path. `graceMs` keeps rendering briefly first (so a
+  // success effect can play / a fail overlay stays visible). `payload` is unused
+  // by the contract (kept for call-site compatibility / debugging).
+  window.__bookmonEnded = false
+  window.__bookmonEnd = function (type, payload, opts) {
+    if (window.__bookmonEnded) return
+    window.__bookmonEnded = true
+    // 1) Record the result (echo the handshake nonce when present).
+    try {
+      var res = {ar: type}
+      var nonce = bmReqNonce()
+      if (nonce != null) res.nonce = nonce
+      sessionStorage.setItem('bookmon-ar-res', JSON.stringify(res))
+    } catch (e) { /* no-op */ }
+    // 2) After the grace period, stop the engine and go to `return` (no query).
+    var graceMs = (opts && typeof opts.graceMs === 'number')
+      ? opts.graceMs
+      : (type === 'success' ? 2500 : 0)   // success: let an effect play; else now
+    var ret = bmReturnPath()
+    function finish() {
+      window.__bookmonStopAR()
+      if (ret) { try { window.location.assign(ret) } catch (e) { /* no-op */ } }
+    }
+    if (graceMs > 0) setTimeout(finish, graceMs)
+    else finish()
+  };
+
+  // Content is ready: fade the white boot overlay out, then remove it — the AR
+  // content shows through, appearing to fade in from white. Called from the ECS
+  // side (hide-on-ready) when REALITY_READY fires. Idempotent.
+  window.__bookmonReady = function () {
+    var el = document.getElementById('boot-overlay')
+    if (!el || el.__done) return
+    el.__done = true
+    el.classList.add('fade-out')
+    setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el) }, 850)
+  };
+
+  // If the host-supplied image (bookmon-ar-req.image) fails to load, end early as
+  // a failure. Empty/absent image → nothing to probe (the bundled fallback is used).
+  ;(function () {
+    try {
+      var imgSrc = __bmReq && typeof __bmReq.image === 'string' ? __bmReq.image : ''
+      if (imgSrc) {
+        var probe = new Image()
+        probe.onerror = function () {
+          window.__bookmonEnd('fail', {reason: 'image_load_failed', image: imgSrc})
+        }
+        probe.src = imgSrc
+      }
+    } catch (e2) { /* no-op */ }
+  })()
+
+  // Show the desktop guidance when this isn't a touch/mobile device (world AR is
+  // disabled on desktop by the camera config). On mobile, arm a safety fallback so
+  // a missed REALITY_READY never traps the user on the white loading screen.
+  ;(function () {
+    var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (('ontouchstart' in window) && navigator.maxTouchPoints > 1)
+    if (!isMobile) {
+      var hint = document.querySelector('#boot-overlay .desktop-hint')
+      if (hint) hint.style.display = 'block'
+    } else {
+      setTimeout(function () { if (window.__bookmonReady) window.__bookmonReady() }, 15000)
+    }
+  })()
+
+  // Shot effect: muzzle flash + camera shake. Called from the game (shooting-game.ts)
+  // on every shot; `strong` = a confirmed hit (bigger shake). The flash keeps its
+  // CSS muzzle-flash gradient — we only (re)trigger the animation.
+  window.__shotFx = function (color, strong) {
+    window.__shotCount = (window.__shotCount || 0) + 1
+    var fl = document.getElementById('shot-flash')
+    if (fl) {
+      fl.classList.remove('fire')
+      void fl.offsetWidth          // force reflow so the animation retriggers
+      fl.classList.add('fire')
+    }
+    var c = document.querySelector('canvas')
+    if (c) {
+      var cls = strong ? 'cam-shake-strong' : 'cam-shake'
+      c.classList.remove('cam-shake')
+      c.classList.remove('cam-shake-strong')
+      void c.offsetWidth
+      c.classList.add(cls)
+    }
+  }
+
+  // === Game UI controller ================================================
+  // Drives the HTML crosshairs, intro animation, and the capture mini-game.
+  // Called by the game (shooting-game.ts):
+  //   __bookmonUI.setPhase('kill'|'aim'|'capture'|'none')
+  //   __bookmonUI.setLock(bool)          // recolor current reticle (green when aimed)
+  //   __bookmonUI.fireDiscovery(xPct,yPct) // effect.png burst at the monster
+  //   __bookmonUI.showCount(text) / hideCount()  // 3·2·1 countdown
+  //   __bookmonUI.playStartBanner()      // "시작!" banner (start.png)
+  //   __bookmonUI.setGreenZone(start,end)   // reposition the active catch window
+  //   __bookmonUI.setCaptureProgress(done,needed)  // progress dots
+  //   __bookmonUI.cameraShutter()        // "찰칵" flash on a successful catch
+  //   __bookmonUI.startCapture({seconds, greenStart, greenEnd, onCapture, onTimeout})
+  //   __bookmonUI.stopCapture()
+  window.__bookmonUI = (function () {
+    var ui = document.getElementById('game-ui')
+    var xhKill = document.getElementById('xh-kill')
+    var xhCap = document.getElementById('xh-cap')
+    var capCenter = document.getElementById('xh-cap-center')
+    var secsEl = document.getElementById('cap-secs')
+    var indicator = document.getElementById('cap-indicator')
+    var camBtn = document.getElementById('cap-camera')
+    var camImg = camBtn ? camBtn.querySelector('img') : null
+    var discoverFx = document.getElementById('discover-fx')
+    var countdown = document.getElementById('countdown')
+    var startBanner = document.getElementById('start-banner')
+    var progress = document.getElementById('cap-progress')
+    var greenZone = document.getElementById('cap-green')
+
+    var phase = 'none'
+    var locked = false
+    var GREEN0 = 0.336, GREEN1 = 0.664   // green zone as fraction of the gauge width
+    var raf = null
+    var cap = null                        // active capture session
+
+    function now() { return (window.performance && performance.now) ? performance.now() : (+new Date()) }
+
+    function setPhase(p) {
+      phase = p
+      if (ui) ui.setAttribute('data-phase', p)
+      setLock(false)
+      if (p !== 'capture') stopCapture()
+    }
+    function setLock(v) {
+      locked = !!v
+      if (phase === 'kill' && xhKill) {
+        xhKill.src = locked ? 'assets/kill_green.png' : 'assets/kill_white.png'
+      } else if ((phase === 'capture' || phase === 'aim') && capCenter) {
+        capCenter.src = locked ? 'assets/cap_green.png' : 'assets/cap_white.png'
+      }
+    }
+
+    // ---- Intro helpers --------------------------------------------------
+    // effect.png burst — camera-centered (fixed at screen center), big.
+    function fireDiscovery() {
+      if (!discoverFx) return
+      discoverFx.classList.remove('play')
+      void discoverFx.offsetWidth
+      discoverFx.classList.add('play')
+    }
+    function showCount(txt) {
+      if (!countdown) return
+      // txt is '3' | '2' | '1' → the matching countdown banner image.
+      countdown.src = 'assets/start_' + txt + '.png'
+      // Restart the pop animation for each number.
+      countdown.classList.remove('show')
+      void countdown.offsetWidth
+      countdown.classList.add('show')
+    }
+    function hideCount() { if (countdown) countdown.classList.remove('show') }
+    function playStartBanner() {
+      if (!startBanner) return
+      startBanner.classList.remove('play')
+      void startBanner.offsetWidth
+      startBanner.classList.add('play')
+    }
+
+    // ---- Capture-zone + progress + shutter ------------------------------
+    // Draw the green catch zone at the exact logical [start, end] fractions.
+    function setGreenZone(start, end) {
+      if (start != null) GREEN0 = start
+      if (end != null) GREEN1 = end
+      if (greenZone) {
+        greenZone.style.left = (GREEN0 * 100) + '%'
+        greenZone.style.width = Math.max(0, (GREEN1 - GREEN0) * 100) + '%'
+      }
+    }
+    // Replay the shrink-emphasis pulse on the green zone (called when it shrinks).
+    function pulseGreen() {
+      if (!greenZone) return
+      greenZone.classList.remove('shrink')
+      void greenZone.offsetWidth
+      greenZone.classList.add('shrink')
+    }
+    function setCaptureProgress(done, needed) {
+      if (!progress) return
+      needed = needed || 0
+      if (progress.childElementCount !== needed) {
+        progress.innerHTML = ''
+        for (var i = 0; i < needed; i++) {
+          var d = document.createElement('span'); d.className = 'dot'; progress.appendChild(d)
+        }
+      }
+      var dots = progress.querySelectorAll('.dot')
+      for (var j = 0; j < dots.length; j++) {
+        if (j < done) dots[j].classList.add('done'); else dots[j].classList.remove('done')
+      }
+    }
+    // Crisp white flash + reticle pop — the "찰칵" that confirms a catch.
+    function cameraShutter() {
+      var fl = document.getElementById('shutter-flash')
+      if (fl) { fl.classList.remove('snap'); void fl.offsetWidth; fl.classList.add('snap') }
+      if (xhCap) { xhCap.classList.remove('snap'); void xhCap.offsetWidth; xhCap.classList.add('snap') }
+    }
+
+    function startCapture(opts) {
+      stopCapture()
+      opts = opts || {}
+      setGreenZone(
+        (opts.greenStart != null) ? opts.greenStart : GREEN0,
+        (opts.greenEnd != null) ? opts.greenEnd : GREEN1
+      )
+      var seconds = opts.seconds || 10
+      var t0 = now(), endAt = t0 + seconds * 1000
+      // Random per-sweep duration (ms for one end-to-end pass). A new value is
+      // rolled each time the indicator turns around, so its speed varies —
+      // sometimes fast, sometimes slow.
+      var minSweep = (opts.minSweepMs != null) ? opts.minSweepMs : 900
+      var maxSweep = (opts.maxSweepMs != null) ? opts.maxSweepMs : 3000
+      var randSweep = function () { return minSweep + Math.random() * (maxSweep - minSweep) }
+      if (secsEl) secsEl.textContent = seconds
+      // pos: 0..1 triangle position, dir: +1/-1, sweepMs: current pass duration.
+      cap = {
+        frac: 0.04, pos: 0, dir: 1, sweepMs: randSweep(), lastT: t0,
+        done: false, onCapture: opts.onCapture, onTimeout: opts.onTimeout,
+      }
+
+      function tick() {
+        if (!cap || cap.done) return
+        var t = now()
+        var dt = t - cap.lastT
+        cap.lastT = t
+        // Advance the position; reflect at the ends and re-roll the speed there.
+        cap.pos += (dt / cap.sweepMs) * cap.dir
+        var guard = 0
+        while ((cap.pos < 0 || cap.pos > 1) && guard++ < 8) {
+          if (cap.pos > 1) { cap.pos = 2 - cap.pos; cap.dir = -1 } else { cap.pos = -cap.pos; cap.dir = 1 }
+          cap.sweepMs = randSweep()
+        }
+        if (cap.pos < 0) cap.pos = 0
+        if (cap.pos > 1) cap.pos = 1
+        // Ease the reversals: blend 60% smoothstep so velocity tapers to ~0 at the
+        // ends. This softens the turnarounds (and the random speed changes that
+        // happen there) into smooth accel/decel instead of an abrupt snap.
+        var s = cap.pos * cap.pos * (3 - 2 * cap.pos)
+        var eased = cap.pos + (s - cap.pos) * 0.6
+        var frac = 0.04 + eased * 0.92             // travel 4%..96%
+        cap.frac = frac
+        if (indicator) indicator.style.left = (frac * 100) + '%'
+        var remain = Math.max(0, Math.ceil((endAt - t) / 1000))
+        if (secsEl) secsEl.textContent = remain
+        if (t >= endAt) {
+          var cb = cap.onTimeout; cap.done = true; cap = null
+          if (cb) cb()
+          return
+        }
+        raf = requestAnimationFrame(tick)
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    function stopCapture() {
+      if (raf) { cancelAnimationFrame(raf); raf = null }
+      cap = null
+    }
+    function tryCapture() {
+      if (!cap || cap.done) return
+      var inGreen = cap.frac >= GREEN0 && cap.frac <= GREEN1
+      if (inGreen && locked) {
+        var cb = cap.onCapture; cap.done = true; stopCapture()
+        if (cb) cb()
+      } else if (indicator) {
+        indicator.classList.remove('miss')
+        void indicator.offsetWidth
+        indicator.classList.add('miss')
+      }
+    }
+
+    if (camBtn) {
+      camBtn.addEventListener('pointerdown', function () { if (camImg) camImg.src = 'assets/cam_press.png' })
+      var release = function () { if (camImg) camImg.src = 'assets/cam_normal.png' }
+      camBtn.addEventListener('pointerup', release)
+      camBtn.addEventListener('pointerleave', release)
+      camBtn.addEventListener('pointercancel', release)
+      camBtn.addEventListener('click', function (e) { e.stopPropagation(); tryCapture() })
+    }
+
+    return {
+      setPhase: setPhase, setLock: setLock,
+      fireDiscovery: fireDiscovery, showCount: showCount, hideCount: hideCount,
+      playStartBanner: playStartBanner, setGreenZone: setGreenZone, pulseGreen: pulseGreen,
+      setCaptureProgress: setCaptureProgress, cameraShutter: cameraShutter,
+      startCapture: startCapture, stopCapture: stopCapture,
+    }
+  })()</script><script src="bundle.js"></script></body></html>
