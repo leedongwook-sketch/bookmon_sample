@@ -46,7 +46,7 @@ const MOCK_GAMES: Game[] = [
       englishName: "Fire Bookmon",
       codeName: "FIRE_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
       thumbnail256Url: null,
       spriteIdleUrl: null,
       spriteLeftUrl: null,
@@ -73,7 +73,7 @@ const MOCK_GAMES: Game[] = [
       englishName: "Water Bookmon",
       codeName: "WATER_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
       thumbnail256Url: null,
       spriteIdleUrl: null,
       spriteLeftUrl: null,
@@ -100,7 +100,7 @@ const MOCK_GAMES: Game[] = [
       englishName: "Sprout Bookmon",
       codeName: "SPROUT_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
       thumbnail256Url: null,
       spriteIdleUrl: null,
       spriteLeftUrl: null,

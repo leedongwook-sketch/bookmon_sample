@@ -62,11 +62,10 @@ function readJson<T>(key: string): T | null {
 // ── 조우 시작: image 해결 + req 기록 + /ar/shooting/ 로 전체 이동 ──
 // 흰 페이드가 끝난 직후(이동 직전) 호출한다. 쿼리 없음, 트레일링 슬래시.
 export function launchAr(game: Game): void {
-  const image =
-    game.monster.thumbnail256Url ??
-    game.monster.thumbnail128Url ??
-    game.monster.thumbnail64Url ??
-    "";
+  // AR 스프라이트는 **256(AR용 고해상)만** 사용. 없으면 "" → 8thwall 내장 폴백(bookmon1.png)로 진행.
+  //   thumbnail128/64 는 도감용(소형)·임시 경로라 AR 스프라이트로 넘기면 안 된다
+  //   (넘긴 이미지가 404면 8thwall이 조기 종료 → AR이 로딩에서 멈춤).
+  const image = game.monster.thumbnail256Url ?? "";
   const req: ArReq = {
     mid: game.id,
     nonce: crypto.randomUUID(),
