@@ -73,6 +73,10 @@ npm run start     # 빌드 결과 실행(Node 서버)
 
 AR 체험은 **별도 8thwall 프로젝트(`bookmon_ar`)** 를 빌드해 정적 번들로 이 앱의 `public/ar/shooting/`에 임포트합니다. 앱은 `/ar/shooting/index.html`로 **전체 페이지 이동**해 AR을 실행하고, `sessionStorage` 계약(`bookmon-ar-req`/`bookmon-ar-res`)으로 통신합니다.
 
+> ⚠️ **`public/ar/` 는 저장소에 커밋되지 않는 생성물입니다.** 새로 clone하면 AR 번들이 없으니,
+> 아래처럼 `bookmon_ar`를 **형제 폴더로 받아 `npm run build:ar`** 를 실행해야 AR이 동작합니다.
+> (AR 없이 온보딩·지도만 볼 거면 생략 가능 — 몬스터 클릭 시 AR 페이지만 404)
+
 ### 폴더 배치 (권장 — 형제 폴더)
 두 프로젝트를 **같은 상위 폴더**에 두면 스크립트가 자동으로 찾습니다.
 ```

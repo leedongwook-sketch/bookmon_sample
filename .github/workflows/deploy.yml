@@ -1,8 +1,8 @@
 name: Deploy to GitHub Pages
 
 # 배포 전용 — main 에 push 되거나 수동 실행 시 정적 export 를 빌드해 Pages 로 배포한다.
-# 로컬 소스는 그대로 두고, 이 워크플로우에서만 NEXT_PUBLIC_BASE_PATH 를 주입해
-# 서브경로(/bookmon_sample) 배포용으로 빌드한다.
+# 로컬 소스는 그대로 두고, 이 워크플로우에서만 NEXT_PUBLIC_BASE_PATH(=BASE_PATH) 를 주입해
+# 서브경로 배포용으로 빌드한다. AR(8thwall)은 별도 저장소를 체크아웃해 빌드·임포트한다.
 on:
   push:
     branches: [main]
@@ -21,7 +21,7 @@ concurrency:
 
 env:
   # 저장소 이름과 동일해야 함(https://<user>.github.io/<repo>/). 저장소명이 바뀌면 여기만 수정.
-  BASE_PATH: /bookmon_sample
+  BASE_PATH: /2026-07-ARQuiz-FRONT
 
 jobs:
   build:
@@ -38,6 +38,23 @@ jobs:
 
       - name: Install deps
         run: npm ci
+
+      # 8thwall AR(비공개) 저장소를 체크아웃해 빌드·임포트 → public/ar/shooting 생성.
+      #   비공개라 기본 GITHUB_TOKEN으로는 못 받음 → 이 저장소 시크릿 AR_REPO_TOKEN(=AR 저장소 읽기 PAT) 필요.
+      #   AR 저장소가 공개면 token 줄을 지워도 된다.
+      - name: Checkout AR (8thwall)
+        uses: actions/checkout@v4
+        with:
+          repository: firstfuturevision/2026-07-ARQuiz-AR
+          ref: master
+          path: _ar-src
+          token: ${{ secrets.AR_REPO_TOKEN }}
+
+      # sync-ar.mjs 가 _ar-src 를 빌드해 public/ar/shooting 으로 미러 복사(다음 build 단계가 out/ 에 포함).
+      - name: Build & import AR bundle
+        env:
+          AR_SRC: ${{ github.workspace }}/_ar-src
+        run: npm run sync-ar
 
       # Pages 최초 활성화까지 자동 처리(수동 Settings→Pages 불필요). Source=GitHub Actions.
       - name: Setup Pages
