@@ -19,8 +19,29 @@ export interface MapAnchor {
   longitude: number;
 }
 
-// GET /play/events/{eventId}/map — 행사장 지도(배경 이미지 + georeference 2점)
-// ⚠ API 명세 1차에는 없음. 지도 화면 요구로 프론트에서 먼저 정의(서버 협의 필요).
+// GET /play/events/{eventId} — 행사 상세(지도 이미지 + GPS bbox). API 명세 확정본.
+// 서버는 정북 기준 직사각형 bbox(north/south/east/west)로 지도 영역을 준다.
+export interface EventDetail {
+  id: string;
+  place: string; // 학교명
+  displayName: string; // 표시명
+  eventDate: string;
+  mapImageUrl: string | null; // 지도 이미지 URL (API 서버 상대경로 또는 절대)
+  gps: {
+    north: number; // 지도 상단 위도
+    south: number; // 지도 하단 위도
+    east: number; // 지도 우측 경도
+    west: number; // 지도 좌측 경도
+  };
+  mapSize: {
+    width: number; // 지도 이미지 픽셀 폭
+    height: number; // 지도 이미지 픽셀 높이
+  };
+}
+
+// 프론트 내부 지도 모델(배경 이미지 + georeference 2점).
+// 서버 EventDetail(bbox)을 이 2앵커로 변환해서 소비한다(projectToImage/3D 좌표 재사용).
+//   bbox → 앵커: NW(x=0,y=0)=(north,west), SE(x=1,y=1)=(south,east).
 export interface EventMap {
   imageUrl: string; // 지도 이미지 경로 (북몬 스타일 배경)
   anchors: [MapAnchor, MapAnchor]; // 정확히 2점 (보통 대각 모서리)
@@ -86,7 +107,9 @@ export interface Quiz {
   type: QuizType;
   choice1: string;
   choice2: string;
-  choice3: string | null; // nullable (2지선다 등)
+  choice3: string | null; // nullable (OX·2지선다 등)
   choice4: string | null;
   answer: number; // 정답 번호 (1~4, 1-based)
+  description: string | null; // 문제 해설 (nullable)
+  imageUrl: string | null; // 보조 이미지 URL (nullable)
 }

@@ -56,12 +56,14 @@ const MOCK_GAMES: Game[] = [
     quiz: {
       id: "quiz_1",
       content: "불은 어떤 성질을 가지고 있을까요?",
-      type: "MULTIPLE_CHOICE",
+      type: "CHOICE",
       choice1: "차갑다",
       choice2: "뜨겁다",
       choice3: "축축하다",
       choice4: "딱딱하다",
       answer: 2,
+      description: "불은 뜨거운 성질을 가지고 있어요.",
+      imageUrl: null,
     },
     location: { latitude: 37.2377, longitude: 127.2047 }, // 용인초 운동장 남서쪽
   },
@@ -83,12 +85,14 @@ const MOCK_GAMES: Game[] = [
     quiz: {
       id: "quiz_2",
       content: "물이 얼면 무엇이 될까요?",
-      type: "MULTIPLE_CHOICE",
+      type: "CHOICE",
       choice1: "수증기",
       choice2: "얼음",
       choice3: "구름",
       choice4: "비",
       answer: 2,
+      description: "물이 얼면 고체인 얼음이 돼요.",
+      imageUrl: null,
     },
     location: { latitude: 37.2384341, longitude: 127.205158 }, // 용인초 중앙(본관 앞)
   },
@@ -110,12 +114,14 @@ const MOCK_GAMES: Game[] = [
     quiz: {
       id: "quiz_3",
       content: "식물이 자라는 데 꼭 필요한 것은 무엇일까요?",
-      type: "MULTIPLE_CHOICE",
+      type: "CHOICE",
       choice1: "햇빛",
       choice2: "어둠",
       choice3: "소금",
       choice4: "돌멩이",
       answer: 1,
+      description: "식물이 자라려면 햇빛이 꼭 필요해요.",
+      imageUrl: null,
     },
     location: { latitude: 37.2388, longitude: 127.2058 }, // 용인초 북동쪽
   },

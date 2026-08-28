@@ -8,8 +8,8 @@ export interface GeoPoint {
 
 export type GameMode = "practice" | "real"; // 연습 / 실전
 
-// 퀴즈 형식. ⚠ API 명세 상 값 혼재(/play="MULTIPLE_CHOICE", 관리자="FOUR") → 확정 필요.
-export type QuizType = "MULTIPLE_CHOICE" | "FOUR" | "OX";
+// 퀴즈 형식 (API 명세 기준): OX(양자택일) · CHOICE(선택형) · BLANK(빈칸).
+export type QuizType = "OX" | "CHOICE" | "BLANK";
 
 export type QuizResult = "correct" | "wrong" | "timeout";
 

@@ -49,6 +49,9 @@ jobs:
       - name: Build (static export + basePath)
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ env.BASE_PATH }}
+          # ⚠ 샘플/테스트 배포 — 전체 mock 로 빌드해 백엔드 없이도 학교검색→모둠→지도→AR 전 흐름이 동작.
+          #   실서버(bookmon.vision-share.com) 연동으로 배포하려면 이 줄을 "false" 로 바꾸거나 제거.
+          NEXT_PUBLIC_USE_MOCK: "true"
         run: npm run build
 
       - name: Prefix raw asset paths for subpath serving

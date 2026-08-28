@@ -15,12 +15,19 @@ export interface SchoolService {
   getGroups(eventId: string): Promise<PlayGroup[]>;
   /** GET /play/groups/{groupId}/games */
   getGames(groupId: string): Promise<Game[]>;
-  /** GET /play/events/{eventId}/map — 행사장 지도(이미지 + 2점 앵커). 시작 시 조회. */
+  /** GET /play/events/{eventId} — 행사 상세(지도 이미지 + GPS bbox)를 EventMap(2앵커)으로 변환해 반환. */
   getEventMap(eventId: string): Promise<EventMap>;
 }
 
-// 🔻 데이터 소스 스왑 지점.
-// 실서버 준비되면: lib/env.ts의 USE_MOCK=false (또는 httpSchoolService로 고정하고 mock 삭제).
+// 🔻 데이터 소스 바인딩 (부분 연동).
+//   - USE_MOCK=true  → 전체 mock (오프라인/전체 테스트 모드).
+//   - 그 외(기본)    → **"모둠 선택까지"(schools·groups)만 실서버**, 게임/지도는 아직 API 미연동이라 mock 유지.
+// 게임/지도 API가 준비되면 아래 mock 라인을 httpSchoolService 로 바꾸면 된다(그때 mock 삭제 가능).
 export const schoolService: SchoolService = USE_MOCK
   ? mockSchoolService
-  : httpSchoolService;
+  : {
+      searchSchools: httpSchoolService.searchSchools, // 실서버 GET /play/schools?keyword=
+      getGroups: httpSchoolService.getGroups, // 실서버 GET /play/events/{eventId}/groups
+      getGames: mockSchoolService.getGames, // mock — 게임 API 미연동
+      getEventMap: mockSchoolService.getEventMap, // mock — 지도 API 미정
+    };

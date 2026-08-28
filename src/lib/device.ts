@@ -11,26 +11,42 @@ interface NavigatorUAData {
 
 /**
  * 현재 기기가 모바일(스마트폰류)인지 추정한다.
- *  1) Chromium `navigator.userAgentData.mobile` — 명시적 모바일 플래그(가장 신뢰).
- *  2) UserAgent 정규식 폴백 — Android/iPhone 등.
- *  3) iPadOS 13+는 데스크톱 Safari(Macintosh)로 위장 → 터치 지원으로 보정.
+ *
+ * ⚠️ 판정은 **양성 신호 OR** 방식 — 하나라도 모바일이라고 하면 모바일로 본다.
+ *    (`userAgentData.mobile`을 조기 return 으로 신뢰하면, 일부 안드로이드 인앱
+ *     브라우저/웹뷰가 이 값을 false 로 줄 때 UA에 `Android`가 있어도 PC로 오판한다.)
+ *
+ *  1) UserAgent 정규식 — Android/iPhone 등 **명시적 모바일 OS**(가장 확실한 양성 신호).
+ *  2) Chromium `navigator.userAgentData.mobile === true` — 보조 양성 신호.
+ *  3) iPadOS 13+는 데스크톱 Safari(Macintosh)로 위장 → 멀티터치로 보정.
+ *  4) 그 외 터치 지원 기기 폴백(coarse pointer + 터치포인트).
  *
  * SSR(navigator 없음)에서는 false를 반환하므로, 반드시 클라이언트 이벤트 시점에 호출한다.
  */
 export function isMobileDevice(): boolean {
   if (typeof navigator === "undefined") return false;
 
-  const uaData = (navigator as Navigator & { userAgentData?: NavigatorUAData })
-    .userAgentData;
-  if (uaData && typeof uaData.mobile === "boolean") return uaData.mobile;
+  const ua = navigator.userAgent || "";
 
-  const ua = navigator.userAgent;
+  // 1) 명시적 모바일 OS — UA에 Android/iPhone 등이 있으면 무조건 모바일.
   if (/Android|iPhone|iPod|iPad|Windows Phone|BlackBerry|Opera Mini|IEMobile|Mobile/i.test(ua)) {
     return true;
   }
 
-  // iPadOS 13+ 위장 케이스(Macintosh인데 멀티터치) 보정.
-  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1;
+  // 2) Chromium client hints — mobile === true 인 경우만 양성으로 취급(false 는 무시).
+  const uaData = (navigator as Navigator & { userAgentData?: NavigatorUAData })
+    .userAgentData;
+  if (uaData?.mobile === true) return true;
+
+  // 3) iPadOS 13+ 위장 케이스(Macintosh인데 멀티터치) 보정.
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+
+  // 4) 최후 폴백 — 터치 위주 기기(coarse pointer + 실제 터치포인트).
+  const coarse =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(pointer: coarse)").matches;
+  return coarse && navigator.maxTouchPoints > 0;
 }
 
 interface PermissionRequestable {
