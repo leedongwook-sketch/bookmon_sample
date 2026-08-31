@@ -16,12 +16,22 @@ const REQ_KEY = "bookmon-ar-req";
 const RES_KEY = "bookmon-ar-res";
 const DISMISSED_KEY = "bookmon-ar-dismissed";
 
+// AR 애니메이션 스프라이트 시트 경로 묶음(계약 확장 v2).
+// 각 값은 로드 가능한 URL 문자열, 없으면 "" (AR 은 "" 이면 image 로 폴백).
+export interface ArSprites {
+  idle: string; // 대기 애니메이션 시트 (= monster.spriteIdleUrl)
+  left: string; // 좌 이동 (= monster.spriteLeftUrl)
+  right: string; // 우 이동 (= monster.spriteRightUrl)
+  hit: string; // 피격 (= monster.spriteHitUrl)
+}
+
 // ── 저장 포맷(직렬화) — 계획서 §3.1 ──────────────────────────────
 export interface ArReq {
   mid: string; // = game.id (조우 단위 식별자)
   nonce: string; // crypto.randomUUID() — 결과 위조/재사용 차단
   ts: number; // Date.now() — 만료 판정
-  image: string; // 스프라이트 경로(gameStore에서 해결). 없으면 "" → AR 내장 폴백
+  image: string; // 대표 이미지(= monster.thumbnail256Url). 없으면 "" → AR 내장 폴백.
+  sprites: ArSprites; // AR 애니메이션 스프라이트 시트 4종. 각 항목 "" 가능(→ image 폴백).
   return: string; // 복귀 pathname(basePath 포함). 예: "/bookmon_sample/map"
 }
 export interface ArRes {
@@ -62,15 +72,25 @@ function readJson<T>(key: string): T | null {
 // ── 조우 시작: image 해결 + req 기록 + /ar/shooting/ 로 전체 이동 ──
 // 흰 페이드가 끝난 직후(이동 직전) 호출한다. 쿼리 없음, 트레일링 슬래시.
 export function launchAr(game: Game): void {
-  // AR 스프라이트는 **256(AR용 고해상)만** 사용. 없으면 "" → 8thwall 내장 폴백(bookmon1.png)로 진행.
-  //   thumbnail128/64 는 도감용(소형)·임시 경로라 AR 스프라이트로 넘기면 안 된다
+  const m = game.monster;
+  // 대표 이미지는 **256(AR용 고해상)만** 사용. 없으면 "" → 8thwall 내장 폴백(bookmon1.png)로 진행.
+  //   thumbnail128/64 는 도감용(소형)·임시 경로라 AR 대표 이미지로 넘기면 안 된다
   //   (넘긴 이미지가 404면 8thwall이 조기 종료 → AR이 로딩에서 멈춤).
-  const image = game.monster.thumbnail256Url ?? "";
+  const image = m.thumbnail256Url ?? "";
+  // 애니메이션 스프라이트 시트(계약 확장 v2). 없는 항목은 "" → AR 이 image 로 폴백.
+  //   URL 은 게임 데이터 그대로 전달(image 와 동일 규칙) — 로드 가능한 경로여야 함.
+  const sprites: ArSprites = {
+    idle: m.spriteIdleUrl ?? "",
+    left: m.spriteLeftUrl ?? "",
+    right: m.spriteRightUrl ?? "",
+    hit: m.spriteHitUrl ?? "",
+  };
   const req: ArReq = {
     mid: game.id,
     nonce: crypto.randomUUID(),
     ts: Date.now(),
     image,
+    sprites,
     // 복귀 경로 = 현재 pathname 그대로(2D /…/map 또는 3D /…/map3d, basePath 이미 포함).
     // withBase() 재적용 금지(이중 접두) — 계획서 §4-4.
     return: window.location.pathname,
