@@ -15,8 +15,9 @@ interface OnboardingScaffoldProps {
  * 온보딩 화면 공통 골격 (BM-101/102/... 공유).
  * 블러 배경 + 로고 + 패널(헤더 문구 + children).
  *
- * 패널은 panel_basic 목업을 CSS/Tailwind로 재현한다(저해상 이미지 깨짐 방지, 세로 자유 확장).
- * 색상은 목업 실측값: 프레임/헤더 블루 #255ba0, 본문 크림 #fff7e5, 하단 림 딥네이비 #142745.
+ * 패널은 참고 이미지(onboarding_ex)를 실측해 CSS/Tailwind로 재현한다.
+ * 실측색: 로열블루 프레임/헤더 #366ab4, 본문 = 흰→연회색 세로 그라데이션(#fdfdfd→#e8e8e8).
+ * 구조: 로열블루 라운드 프레임(드롭섀도) → 흰 글씨 헤더 → 연회색 inset 라운드 패널(children).
  * 화면마다 다른 부분(모드 버튼 / 학교 입력 등)만 children으로 갈아끼운다.
  */
 export function OnboardingScaffold({
@@ -35,17 +36,24 @@ export function OnboardingScaffold({
         "pr-[max(0.75rem,var(--spacing-safe-r))] pb-[max(0.75rem,var(--spacing-safe-b))]",
       ].join(" ")}
     >
-      {/* 뒤로 버튼: 좌상단 고정 코너, 안전영역 여백 반영.
-          MapMenu 햄버거와 같은 코너 감각으로 FitToViewport 스케일과 무관하게 스캐폴드 루트에 배치.
-          onBack이 있을 때만 노출 → 모드선택(BM-101)은 onBack 미전달로 자동 미표시.
-          디자인: 다음 버튼(next_button.svg = CtaButton)과 톤 일치 —
-          골드 그라데이션 #ffe797→#fec610→#ff8800 + 남색 테두리 #12213a + 갈색(#6b3400) 화살표. */}
+      {/* 뒤로 버튼: 좌상단 고정 코너, 안전영역 여백 반영. onBack 있을 때만 노출.
+          디자인 = 기본 버튼(CtaButton)과 동일: 골드 면 + 135.81° 광택 테두리 + 갈색 하단 림.
+          눌림 시 주황 전환. 코너 아이콘 버튼이라 원형(rounded-full)으로만 축소 적용. */}
       {onBack && (
         <button
           type="button"
           aria-label="뒤로"
           onClick={onBack}
-          className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[max(0.75rem,var(--spacing-safe-t))] z-30 flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#12213a] bg-gradient-to-b from-[#ffe797] via-[#fec610] to-[#ff8800] shadow-[inset_0_2px_0_rgba(255,255,255,0.6),0_3px_0_#12213a,0_6px_10px_rgba(0,0,0,0.3)] active:translate-y-[2px] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.45),0_1px_0_#12213a,0_3px_6px_rgba(0,0,0,0.25)]"
+          className={[
+            "absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[max(0.75rem,var(--spacing-safe-t))] z-30",
+            "flex h-12 w-12 items-center justify-center rounded-full",
+            "border-[4px] border-transparent",
+            "[background:linear-gradient(180deg,#fec610,#e9a300)_padding-box,linear-gradient(135.81deg,#ffe16a_17.76%,#eb8005_82.83%)_border-box]",
+            "shadow-[0_5px_0_#7c3e00,0_4px_7px_rgba(0,0,0,0.5)]",
+            "transition-all duration-100",
+            "active:translate-y-[3px] active:[background:linear-gradient(180deg,#ff9028,#e95900)_padding-box,linear-gradient(135.81deg,#ffaa6a_17.76%,#eb5d05_82.83%)_border-box]",
+            "active:shadow-[0_2px_0_#7c3e00,0_2px_5px_rgba(0,0,0,0.5)]",
+          ].join(" ")}
         >
           <BackArrowIcon />
         </button>
@@ -66,42 +74,44 @@ export function OnboardingScaffold({
         </div>
       )}
 
-      {/* 콘텐츠를 뷰포트에 맞게 균일 축소 → 가로모드에서도 스크롤 없이 전부 보임 */}
+      {/* 콘텐츠를 뷰포트에 맞게 균일 축소 → 가로모드에서도 스크롤 없이 전부 보임(확대 없이 축소만) */}
       <FitToViewport className="z-10">
-        {/* test.png 기준 비율: 로고 폭 ≈ 패널 폭의 0.62, 로고와 패널은 가깝게 */}
-        <div className="flex w-[min(92vw,560px)] flex-col items-center gap-3">
-          {/* 로고 (여백 크롭 후 종횡비 1914×1155 ≈ 1.66:1) */}
+        {/* 그림자 여백 래퍼: FitToViewport 는 offsetHeight(그림자 제외)로 배율을 잡아
+            딱 맞게 축소하면 패널 드롭섀도/하단 립이 overflow-hidden 에 잘린다.
+            이 패딩만큼 측정 박스를 키워 그림자가 잘리지 않게 한다(패널 폭은 아래 그대로 유지). */}
+        <div className="px-8 pb-12 pt-2">
+        {/* 고정 px 구조(560) → FitToViewport가 화면에 맞춰 균일 스케일. 비율은 모든 화면에서 동일. */}
+        <div className="flex w-[560px] flex-col items-center gap-3">
+          {/* 로고 (새 BOOKMON 로고, 트림 후 종횡비 1280×814 ≈ 1.57:1) */}
           <AssetImage
             src={ASSETS.logo}
             alt="BOOKMON 로고"
-            width={1914}
-            height={1155}
+            width={1280}
+            height={814}
             className="h-auto w-[340px]"
           />
 
           {/* 패널 + 걸침 푸터 묶음 (footer가 패널 하단 모서리에 반쯤 걸침) */}
           <div className="relative flex w-full flex-col items-center">
-            {/* 패널: 프레임 남색 그라데이션(상단 블루 #255ba0 → 하단 남색 #12213a) + 헤더 + 크림 본문.
-                하단 남색 #12213a = 다음 버튼 테두리색과 동일 → 걸침 시 자연스럽게 이어짐. */}
-            <div className="w-full rounded-[22px] border-2 border-[#12213a] bg-gradient-to-b from-[#255ba0] to-[#12213a] px-[6px] pb-[7px] shadow-[0_14px_28px_rgba(0,0,0,0.45)]">
-              {/* 헤더바: 블루 프레임 상단, 흰 글씨 (화면별 동적 문구) */}
-              <p className="px-6 py-2.5 text-center text-base font-extrabold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
+            {/* 기본 패널 — 피그마(스케일 0.332) 3레이어:
+                프레임(#366AB4, radius 56.74→19, pad 37.82/26.48→13/9, gap 12.63→4)
+                + 네이비 베이스(#124889, 아래 offset → box-shadow 0 7px 0) + 드롭섀도(-10 10 20 #00000080→스케일). */}
+            <div className="flex w-full flex-col gap-[4px] rounded-[19px] bg-[#366ab4] px-[9px] pt-[13px] pb-[9px] shadow-[0_7px_0_#124889,-3px_6px_8px_rgba(0,0,0,0.5)]">
+              {/* 헤더바: 프레임 위 흰색 볼드 중앙정렬 (화면별 동적 문구). */}
+              <p className="px-6 text-center text-base font-extrabold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.28)]">
                 {banner}
               </p>
 
-              {/* 본문: 크림 면 + 안쪽 미세 보더 (footer 있으면 걸침 버튼 자리만큼 하단 여백 확보) */}
-              <div
-                className={`flex flex-col items-center gap-5 rounded-[16px] border border-[#eadcb4] bg-[#fff7e5] px-8 pt-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${
-                  footer ? "pb-11" : "pb-6"
-                }`}
-              >
+              {/* 내부 패널(layout2) — radius 45.39→15, pad 56.74/113.47→19/38(하단 2배), 흰→#E1E1E1 그라데. */}
+              <div className="flex w-full flex-col items-center gap-[5px] rounded-[15px] bg-gradient-to-b from-[#ffffff] to-[#e1e1e1] px-[19px] pt-[19px] pb-[38px] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.08)]">
                 {children}
               </div>
             </div>
 
             {/* 걸침 CTA: 패널 하단 중앙에 음수 마진으로 반쯤 걸침(in-flow → 축소 측정 정확) */}
-            {footer && <div className="relative z-10 -mt-[23px]">{footer}</div>}
+            {footer && <div className="relative z-10 -mt-[26px]">{footer}</div>}
           </div>
+        </div>
         </div>
       </FitToViewport>
     </div>

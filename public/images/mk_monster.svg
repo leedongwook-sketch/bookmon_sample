@@ -1,0 +1,22 @@
+<svg width="116" height="100" viewBox="0 0 116 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 몬스터 마커: 퀴즈 프레임(quiz_frame) 스타일 — 파란 하드커버 + 흰 페이지 + 핑크 리본. -->
+  <!-- 바닥 그림자 -->
+  <ellipse cx="58" cy="92" rx="30" ry="6" fill="#12213a" opacity="0.16"/>
+
+  <!-- 파란 하드커버(펼친 바깥) — 진파랑 외곽 + 파랑 면 -->
+  <path d="M58 26 C45 18 26 16 11 21 L11 74 C26 69 45 71 58 79
+           C71 71 90 69 105 74 L105 21 C90 16 71 18 58 26 Z"
+        fill="#366ab3" stroke="#124a8d" stroke-width="4" stroke-linejoin="round"/>
+
+  <!-- 흰 페이지(좌/우) — 커버 안쪽. 회색 단면 라인으로 종이 두께감 -->
+  <path d="M58 30 C47 23 30 21 17 24 L17 70 C30 67 47 69 58 76 Z"
+        fill="#ffffff" stroke="#c9d2dc" stroke-width="2"/>
+  <path d="M58 30 C69 23 86 21 99 24 L99 70 C86 67 69 69 58 76 Z"
+        fill="#ffffff" stroke="#c9d2dc" stroke-width="2"/>
+  <!-- 가운데 책등 접힘 -->
+  <path d="M58 30 L58 76" stroke="#c9d2dc" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- 핑크 리본 북마크(BOOK QUIZ 톤) — 좌측 페이지 위에서 아래로 -->
+  <path d="M31 22 L43 22 L43 50 L37 44 L31 50 Z"
+        fill="#eb3c84" stroke="#c31f63" stroke-width="1.6" stroke-linejoin="round"/>
+</svg>

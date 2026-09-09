@@ -1,8 +1,10 @@
 import type { GameMode } from "@/types";
 
 /**
- * BM-101 실행모드 정의 (톤앤매너: 체험=스카이블루/돋보기, 행사=골드/깃발).
+ * BM-101 실행모드 정의 (톤앤매너: 실행모드=파랑, 행사모드=주황).
  * 문구·색·아이콘·다음 경로를 데이터로 분리 → UI를 건드리지 않고 여기만 고치면 됨.
+ * NOTE: 표시 라벨은 참고 이미지에 맞춰 "실행모드"로 표기하되, 내부 모드 키(practice)와
+ *       분기 로직(next 라우팅 등)은 그대로 유지한다.
  */
 export interface ModeOption {
   mode: GameMode;
@@ -15,10 +17,10 @@ export interface ModeOption {
 export const MODE_OPTIONS: ModeOption[] = [
   {
     mode: "practice",
-    label: "체험모드",
+    label: "실행모드",
     variant: "primary",
     icon: "search",
-    next: "/map", // 학교·모둠 생략하고 바로 시작
+    next: "/play", // 학교·모둠 생략, 현재 위치 기준 OSM 실지도(실행모드)로 바로 진입
   },
   {
     mode: "real",

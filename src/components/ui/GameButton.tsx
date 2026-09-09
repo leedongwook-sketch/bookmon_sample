@@ -6,15 +6,15 @@ type Variant = "primary" | "gold" | "cream" | "orange";
 const VARIANT_CLASS: Record<Variant, string> = {
   // 스카이블루 (주 버튼 / 체험모드) — 흰 글씨, 진한 파랑 보더 (onboard_button2)
   primary:
-    "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.3)] border-[#1461a8] bg-gradient-to-b from-[#5cc4ff] via-[#22a7f6] to-[#0d8fe6] shadow-[inset_0_2px_0_rgba(255,255,255,0.55),0_5px_0_#0a6cb5,0_9px_14px_rgba(0,0,0,0.35)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.4),0_2px_0_#0a6cb5,0_5px_9px_rgba(0,0,0,0.3)]",
+    "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.3)] border-[#1461a8] bg-gradient-to-b from-[#5cc4ff] via-[#22a7f6] to-[#0d8fe6] shadow-[inset_0_2px_0_rgba(255,255,255,0.55),0_5px_0_#0a6cb5,0_6px_6px_rgba(0,0,0,0.42)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.4),0_2px_0_#0a6cb5,0_3px_4px_rgba(0,0,0,0.34)]",
   // 골드 (강조·확정 / 행사모드) — 흰 글씨 + 네이비 보더 (button_basic / onboard_button)
-  gold: "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.45)] border-navy bg-gradient-to-b from-[#ffdc5c] via-[#febe1a] to-[#f9a800] shadow-[inset_0_2px_0_rgba(255,255,255,0.65),0_5px_0_#d98f00,0_9px_14px_rgba(0,0,0,0.35)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.5),0_2px_0_#d98f00,0_5px_9px_rgba(0,0,0,0.3)]",
+  gold: "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.45)] border-navy bg-gradient-to-b from-[#ffdc5c] via-[#febe1a] to-[#f9a800] shadow-[inset_0_2px_0_rgba(255,255,255,0.65),0_5px_0_#d98f00,0_6px_6px_rgba(0,0,0,0.42)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.5),0_2px_0_#d98f00,0_3px_4px_rgba(0,0,0,0.34)]",
   // 크림/아이보리 카드 (선택 목록 등) — 네이비 글씨
   cream:
-    "text-navy border-[#12213a] bg-gradient-to-b from-[#fff6e1] to-[#f7e9c6] shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_5px_0_#c9b78a,0_9px_14px_rgba(0,0,0,0.3)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.6),0_2px_0_#c9b78a,0_5px_9px_rgba(0,0,0,0.3)]",
+    "text-navy border-[#12213a] bg-gradient-to-b from-[#fff6e1] to-[#f7e9c6] shadow-[inset_0_2px_0_rgba(255,255,255,0.8),0_5px_0_#c9b78a,0_6px_6px_rgba(0,0,0,0.36)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.6),0_2px_0_#c9b78a,0_3px_4px_rgba(0,0,0,0.34)]",
   // 주황 통배경 (보조 액션 / 뒤로) — 흰 글씨
   orange:
-    "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] border-[#c96a12] bg-gradient-to-b from-[#ff9f3a] to-[#f5871f] shadow-[inset_0_2px_0_rgba(255,255,255,0.5),0_5px_0_#b3600f,0_9px_14px_rgba(0,0,0,0.35)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.4),0_2px_0_#b3600f,0_5px_9px_rgba(0,0,0,0.3)]",
+    "text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)] border-[#c96a12] bg-gradient-to-b from-[#ff9f3a] to-[#f5871f] shadow-[inset_0_2px_0_rgba(255,255,255,0.5),0_5px_0_#b3600f,0_6px_6px_rgba(0,0,0,0.42)] active:shadow-[inset_0_2px_0_rgba(255,255,255,0.4),0_2px_0_#b3600f,0_3px_4px_rgba(0,0,0,0.34)]",
 };
 
 interface GameButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

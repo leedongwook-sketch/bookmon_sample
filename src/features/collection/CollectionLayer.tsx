@@ -2,106 +2,133 @@
 
 import { useRef } from "react";
 import { useGameStore } from "@/store/gameStore";
+import type { CollectionEntry, Monster } from "@/types";
 
-// 도감 보드 이미지(벡터). 남색 프레임 + 크림 내부 + 5×4 "?" 칸이 baked된 완성 보드.
-const BOARD_SRC = "/images/collection_board.svg";
-
-// board.svg 실측 지오메트리 — viewBox 1382×1124, 칸 215×214, 5열×4행.
-// 포획 몬스터 이미지를 이 칸 좌표(%) 위에 얹어 "?"를 덮는다.
-const BOARD_W = 1382;
-const BOARD_H = 1124;
-const CELL_W = 215;
-const CELL_H = 214;
-const CELL_X = [78, 331, 583, 836, 1089]; // 각 열 좌상단 x
-const CELL_Y = [78, 329, 581, 832]; // 각 행 좌상단 y
-const CELLS = CELL_Y.flatMap((y) => CELL_X.map((x) => ({ x, y }))); // 좌→우, 상→하 20칸
-
-// 탭으로 인정할 최대 이동 거리(px). 이보다 크게 움직이면 드래그/스크롤 제스처로 보고 닫지 않는다.
+// 탭으로 인정할 최대 이동 거리(px). 이보다 크게 움직이면 드래그/스크롤로 보고 닫지 않는다.
 const TAP_SLOP_PX = 10;
 
 /**
- * 몬스터 도감 레이어 (모듈형·재사용) — 지도 위 오버레이.
- *  - 완성된 board.svg 한 장을 중앙에 띄운다(정적). "?" 칸이 이미 그림에 포함됨.
- *  - 메뉴(햄버거)와 포획 성공 후 양쪽에서 같은 컴포넌트를 연다.
+ * 몬스터 도감 레이어 — 지도 위 오버레이 (피그마 비율 재현, CSS + 반응형).
+ *  패널 3레이어: 네이비 베이스(#124889) + 블루 프레임(#366AB4) + 흰→#DDDDDD 내부.
+ *  칸 3상태(CollectionEntry.acquired 기준):
+ *    - 미획득(엔트리 없음): 크림 #FFF3DA + 파란 테두리 #366AB4 + "?"
+ *    - 포획(acquired=true): gradient #30BDFF→#366AB4 + 테두리 #0055CE + 몬스터 이미지
+ *    - 포획실패(acquired=false): #656565 + 가운데 빨간 X
+ *  로스터 = 모둠 게임(games)의 유니크 몬스터. 항상 5열×4행=20칸(넘치면 행 확장).
  *
- * 닫기(모바일 우선): 레이어 아무 곳이나(보드 포함) 탭하면 닫는다. 별도 X 버튼 없음.
- *   - 상위 지도 컨테이너가 touch-none + pointer capture 환경이라, 합성 onClick은
- *     터치에서 억제/누락될 수 있다. 그래서 pointerdown→up을 직접 추적해 닫는다.
- *   - pointerdown 위치를 기록하고 pointerup에서 이동량이 작을 때(탭)만 닫아 드래그 오발을 막는다.
- *   - onPointerDown에서 stopPropagation → 뒤 지도가 드래그되지 않게 한다(기존 취지 유지).
- *   - board.svg가 지금은 정적 view-only라 "보드 탭=닫기"가 기능과 충돌하지 않는다.
+ * 크기: 반응형 폭 min(가로, 세로환산). 패딩/갭은 %로 두어 어떤 크기에서도 **비율 동일**.
+ *   (이전 FitToViewport 방식은 콘텐츠를 키우면 오히려 더 축소돼 갭이 좁아지는 문제가 있어 교체.)
  *
- *  - board.svg 위 5×4 칸 좌표(실측)에 포획 몬스터(collection) 이미지를 순서대로 얹어 "?"를 덮는다.
- *
- * TODO(추후): card.svg 기반 칸별 카드 디자인 교체(현재는 board 위 몬스터 이미지 오버레이).
- * TODO(추후): card 칸 상호작용 도입 시 보드 탭-닫기 제거 → 바깥(backdrop) 탭만 닫도록 되돌린다.
+ * 닫기: 레이어 아무 곳이나 탭(정적 view-only). pointerdown→up 이동량이 작을 때만 닫음.
  */
 export function CollectionLayer({ onClose }: { onClose: () => void }) {
+  const games = useGameStore((s) => s.games);
   const collection = useGameStore((s) => s.collection);
+
+  // 유니크 몬스터 로스터(게임 순서 유지, 중복 monster.id 제거).
+  const seen = new Set<string>();
+  const roster: Monster[] = [];
+  for (const g of games) {
+    if (!seen.has(g.monster.id)) {
+      seen.add(g.monster.id);
+      roster.push(g.monster);
+    }
+  }
+  // 전체 칸 수 = 총 몬스터(로스터) 기준, 항상 5×4=20칸 최소. 20 초과면 5열 기준 행 확장.
+  const cellCount = Math.max(20, Math.ceil(roster.length / 5) * 5);
 
   // pointerdown 시작점 — pointerup에서 이동량이 작으면(탭) 닫는다.
   const downRef = useRef<{ x: number; y: number } | null>(null);
-
   const onDown = (e: React.PointerEvent) => {
-    // 뒤 지도가 드래그되지 않게 전파 차단(기존 취지 유지).
-    e.stopPropagation();
+    e.stopPropagation(); // 뒤 지도 드래그 방지
     downRef.current = { x: e.clientX, y: e.clientY };
   };
-
   const onUp = (e: React.PointerEvent) => {
     const start = downRef.current;
     downRef.current = null;
     if (!start) return;
-    // 탭(이동량 작음)일 때만 닫는다 — 드래그/스크롤성 제스처는 무시.
-    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
-    if (moved <= TAP_SLOP_PX) onClose();
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) <= TAP_SLOP_PX) {
+      onClose();
+    }
   };
 
   return (
     <div
       onPointerDown={onDown}
       onPointerUp={onUp}
-      // 레이어 전체 탭으로 닫으므로 자체 제스처를 브라우저에 넘기지 않는다.
-      className="fixed inset-0 z-[80] flex touch-none items-center justify-center bg-navy/45 p-4"
+      className="fixed inset-0 z-[80] flex touch-none items-center justify-center bg-navy/45 p-3"
     >
-      {/* board.svg는 자체 완결형 프레임 — 별도 패널 없이 이미지만 중앙 배치.
-          접근성: 이미지 컨테이너에 도감 역할을 부여(헤더 텍스트는 보드가 대체).
-          현재는 정적 view-only라 보드 위 탭도 backdrop과 동일하게 닫힘 처리(위 onDown/onUp). */}
-      {/* 부모 박스를 board 이미지와 '정확히 같은 크기'로 맞춘다(오버레이 %정렬의 기준).
-          이미지를 in-flow(block)로 두고 max-w/max-h로 제한 → 부모(inline 크기)가 이미지에 딱 맞음.
-          (이전엔 부모 폭 고정 + 이미지 max-h 축소로 크기가 어긋나 오버레이가 칸을 벗어났다.) */}
-      <div role="img" aria-label="몬스터 도감" className="relative">
-        {/* eslint-disable-next-line @next/next/no-img-element -- 벡터(SVG) 보드: next/image 최적화 불필요, 확대해도 선명 */}
-        <img
-          src={BOARD_SRC}
-          alt=""
-          aria-hidden="true"
-          className="block h-auto max-h-[92dvh] w-auto max-w-[90vw]"
-          draggable={false}
-        />
-
-        {/* 포획 몬스터 이미지 — board 칸 좌표(%)에 순서대로 얹어 "?"를 덮는다. */}
-        {collection.slice(0, CELLS.length).map((entry, i) => {
-          const cell = CELLS[i];
-          if (!entry.imageUrl) return null; // 이미지 없으면 board의 "?" 그대로 노출
-          return (
-            // eslint-disable-next-line @next/next/no-img-element -- 도감 칸 몬스터 썸네일
-            <img
-              key={entry.monsterId}
-              src={entry.imageUrl}
-              alt={entry.koreanName}
-              draggable={false}
-              className="absolute object-contain"
-              style={{
-                left: `${(cell.x / BOARD_W) * 100}%`,
-                top: `${(cell.y / BOARD_H) * 100}%`,
-                width: `${(CELL_W / BOARD_W) * 100}%`,
-                height: `${(CELL_H / BOARD_H) * 100}%`,
-              }}
-            />
-          );
-        })}
+      {/* 반응형 폭 + 컨테이너 쿼리 기준. 내부 치수는 전부 cqw(=컨테이너폭 1%)로 →
+          가로/세로 갭이 동일 px, 어떤 크기에서도 비율 동일, 부모를 벗어나지 않는다.
+          (일반 % gap 은 세로(row-gap)가 auto 높이에서 0 처리되는 문제가 있어 cqw 로 교체.) */}
+      <div className="@container w-[min(80vw,100dvh,780px)]">
+        {/* 네이비 베이스(하단 림) + 블루 프레임(#366AB4) + 드롭섀도. */}
+        <div
+          role="img"
+          aria-label="몬스터 도감"
+          className="rounded-[4cqw] bg-[#366ab4] p-[2cqw] shadow-[0_10px_0_#124889,-5px_6px_12px_rgba(0,0,0,0.5)]"
+        >
+          {/* 내부 패널: 흰→#DDDDDD 그라데. */}
+          <div className="rounded-[3cqw] bg-gradient-to-b from-white to-[#dddddd] p-[3.5cqw]">
+            {/* 5열 그리드 — 갭 2.6cqw. 시도 순서(collection)대로 좌상단부터 채우고 나머지는 "?". */}
+            <div className="grid grid-cols-5 gap-[2.6cqw]">
+              {Array.from({ length: cellCount }, (_, i) => {
+                const entry = collection[i]; // 시도한 순서대로 앞칸부터
+                return (
+                  <DexCell key={entry?.monsterId ?? `empty-${i}`} entry={entry} />
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// 도감 칸 — 정사각(aspect-square, 폭에 맞춰 크기 결정). radius/border 는 칸 크기에 비례(% 근사).
+function DexCell({ entry }: { entry?: CollectionEntry }) {
+  // 컨테이너폭 기준(cqw): 칸 ≈ 15cqw. radius/칸≈0.2→3cqw, border/칸≈0.048→0.7cqw.
+  const base =
+    "flex aspect-square w-full items-center justify-center rounded-[3cqw] border-[0.7cqw]";
+
+  // 포획실패: 실패 이미지(회색 몬스터 + 빨간 X, 파란 테두리 baked). 이미지 자체가 칸을 채운다.
+  if (entry && !entry.acquired) {
+    return (
+      <div className="aspect-square w-full overflow-hidden rounded-[3cqw]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획실패 칸 이미지 */}
+        <img
+          src="/images/collect/non_catch_mon.png"
+          alt={`${entry.koreanName} 포획 실패`}
+          draggable={false}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  // 포획 성공: 성공 이미지(몬스터 + 파란 테두리 baked). 실패 칸과 대칭 구조.
+  //   ⚠ [테스트] 지금은 고정 이미지. 실서버 몬스터 썸네일 연동 시 entry.imageUrl 을 프레임 안에 합성.
+  if (entry?.acquired) {
+    return (
+      <div className="aspect-square w-full overflow-hidden rounded-[3cqw]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획성공 칸 이미지 */}
+        <img
+          src="/images/collect/catch_mon.png"
+          alt={`${entry.koreanName} 포획 성공`}
+          draggable={false}
+          className="h-full w-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  // 미획득: 크림 + 파란 테두리 + "?"
+  return (
+    <div className={`${base} border-[#366ab4] bg-[#fff3da]`}>
+      <span className="text-[7cqw] font-extrabold leading-none text-[#12213a]">
+        ?
+      </span>
     </div>
   );
 }

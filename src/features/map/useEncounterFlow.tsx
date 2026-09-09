@@ -15,6 +15,10 @@ import { QuizLayer } from "@/features/quiz/QuizLayer";
 import { CollectionLayer } from "@/features/collection/CollectionLayer";
 import type { Game, GameLocation } from "@/types";
 
+// ⚠ [테스트 전용] 책(몬스터) 클릭 시 AR 콘텐츠를 건너뛰고 바로 퀴즈(성공 이벤트)로 진입.
+//   true 로 바꾸면 AR을 건너뛰고 바로 퀴즈로(PC 테스트용).
+const SKIP_AR_TO_QUIZ = false;
+
 const FADE_IN_MS = 700; // 흰 화면으로 덮이는 시간(발견 → AR 페이지로 이동 직전까지)
 const FADE_OUT_MS = 600; // 복귀 시 흰 화면을 걷어 지도를 드러내는 시간
 const DISMISS_COOLDOWN_MS = 60_000; // close 후 근접 재트리거 억제 시간(§4-4)
@@ -41,7 +45,7 @@ export function useEncounterFlow({
   games: Game[];
   myPos: GameLocation;
 }): EncounterFlow {
-  const capture = useGameStore((s) => s.capture);
+  const recordResult = useGameStore((s) => s.recordResult);
   const collection = useGameStore((s) => s.collection);
   const [fadePhase, setFadePhase] = useState<FadePhase>("idle"); // 흰 화면 전환 단계
   const [quizGame, setQuizGame] = useState<Game | null>(null); // 퀴즈 레이어 대상(포획 성공 몬스터)
@@ -57,6 +61,14 @@ export function useEncounterFlow({
   const beginEncounter = useCallback(
     (game: Game) => {
       if (leaving || transitionTimer.current) return; // 이미 진행 중이면 무시
+
+      // ⚠ [테스트] AR 스킵 → 바로 퀴즈. 기기 체크·흰 페이드·AR 이동을 모두 건너뛴다(PC에서도 테스트 가능).
+      //   원복: 위 SKIP_AR_TO_QUIZ 를 false 로.
+      if (SKIP_AR_TO_QUIZ) {
+        handledRef.current.add(game.id); // 근접 재트리거 방지
+        setQuizGame(game); // AR 성공한 것으로 간주 → 퀴즈 시작
+        return;
+      }
 
       // AR 콘텐츠 요청 전 기기 체크 — 카메라·자이로가 필요해 스마트폰에서만 실행 가능.
       // PC(비모바일)면 흰 화면 전환/이동 없이 안내만 띄운다(불필요한 흰 플래시 방지).
@@ -117,11 +129,8 @@ export function useEncounterFlow({
       handledRef.current.add(result.game.id);
 
       if (result.ok) {
-        // [테스트] AR 포획 성공 → 도감에 추가 + 잠깐 뒤 도감 레이어 표시.
-        // 원복(실서비스 퀴즈 흐름): 아래 두 줄을 `setQuizGame(result.game)` 한 줄로 되돌리면
-        //   성공 → 퀴즈 → 정답 시 도감 흐름이 복구된다.
-        capture(result.game.monster);
-        window.setTimeout(() => setShowCollection(true), 350);
+        // AR 포획 성공 → 퀴즈 진입. 정답/오답에 따라 도감에 성공/실패 기록(1회 시도).
+        setQuizGame(result.game);
       } else {
         // 실패/닫기 → 포획 없음. close 쿨다운을 남겨 근접 즉시 재트리거 루프 방지(§4-4).
         markDismissed(result.game.id);
@@ -135,7 +144,7 @@ export function useEncounterFlow({
     }
     const unsub = useGameStore.persist.onFinishHydration(run);
     return unsub;
-  }, [capture]);
+  }, [recordResult]);
 
   // 도착 판정: 매 렌더(내 위치 변경 시) 반경 10m 내 몬스터 검출.
   const nearby = getMonstersInRange(
@@ -181,21 +190,25 @@ export function useEncounterFlow({
           // TODO(실서비스): 퀴즈/책 제목 필드가 생기면 그것으로 교체.
           title={quizGame.monster.koreanName}
           onCorrect={() => {
-            // 정답 → 도감에 포획 몬스터 추가 + (퀴즈 닫힌 뒤) 도감 레이어 열기 예약
-            capture(quizGame.monster);
+            // 정답 → 도감에 포획 성공 기록 + (퀴즈 닫힌 뒤) 도감 열기 예약
+            recordResult(quizGame.monster, true);
             openCollectionRef.current = true;
           }}
           onWrong={() => {
-            // TODO(실서비스): 오답 처리
+            // 오답(1회 시도) → 포획 실패 기록 + 도감 열기 예약
+            recordResult(quizGame.monster, false);
+            openCollectionRef.current = true;
           }}
           onTimeout={() => {
-            // TODO(실서비스): 시간초과 처리
+            // 시간초과 → 포획 실패 기록 + 도감 열기 예약
+            recordResult(quizGame.monster, false);
+            openCollectionRef.current = true;
           }}
           onClose={() => {
             setQuizGame(null);
             if (openCollectionRef.current) {
               openCollectionRef.current = false;
-              setShowCollection(true); // 정답이었으면 도감 레이어 표시
+              setShowCollection(true); // 성공/실패 무관하게 결과 반영된 도감 표시
             }
           }}
         />

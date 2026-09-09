@@ -7,6 +7,7 @@ import { useGameStore } from "@/store/gameStore";
 import { useMyPosition } from "@/features/map/useMyPosition";
 import { useEncounterFlow } from "@/features/map/useEncounterFlow";
 import { TestModeBanner } from "@/features/map/TestModeBanner"; // ⚠ 테스트 전용(삭제 가능)
+import { MAP_GOLD_BUTTON } from "@/features/map/mapButtonStyle";
 import { computeGroundLayout } from "./layout";
 import type { EventMap, Game, GroundLayout } from "@/types";
 
@@ -45,13 +46,15 @@ function Map3DView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
   const groundLayout = useGameStore((s) => s.groundLayout);
   const collection = useGameStore((s) => s.collection);
 
-  // 포획(퀴즈 성공→도감 추가)한 몬스터는 3D에서도 제외 — 2D 지도와 동기화(마커/조우/layout 공통).
+  // 순차 진행(2D와 동일): 미시도(collection 미기록) 몬스터 중 **첫 1개만** 표시.
+  //   마커/조우/layout 공통이라 3D도 한 번에 한 마리씩만 노출된다.
   // useMemo: layout 계산 useEffect의 deps라 참조 안정화(games/collection 불변 시 재계산 방지).
-  const activeGames = useMemo(
-    () =>
-      games.filter((g) => !collection.some((e) => e.monsterId === g.monster.id)),
-    [games, collection]
-  );
+  const activeGames = useMemo(() => {
+    const next = games.find(
+      (g) => !collection.some((e) => e.monsterId === g.monster.id)
+    );
+    return next ? [next] : [];
+  }, [games, collection]);
 
   // 조우 흐름(2D와 동일 공용 훅). 근접 판정은 GPS lat/lng만 사용 — 3D 표시좌표(world)와 무관.
   const { beginEncounter, layers: encounterLayers } = useEncounterFlow({
@@ -130,7 +133,7 @@ function ModeSwitchButton() {
   return (
     <Link
       href="/map"
-      className="absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full border-2 border-navy bg-ivory/95 px-3 py-2 text-xs font-extrabold text-navy shadow-lg active:scale-95"
+      className={`absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-extrabold ${MAP_GOLD_BUTTON}`}
     >
       2D 지도
     </Link>

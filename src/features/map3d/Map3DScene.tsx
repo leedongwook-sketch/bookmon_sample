@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useRef } from "react";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { Billboard, OrbitControls, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import type { Game, GroundLayout, GroundPoint } from "@/types";
@@ -12,9 +12,7 @@ import type { Game, GroundLayout, GroundPoint } from "@/types";
 //  - 몬스터/내 위치는 지면 위 빌보드 마커(항상 카메라를 향함).
 
 // ── 디자인 토큰(three는 CSS 변수를 못 읽어 hex 상수로 미러) ──
-const NAVY = "#12213a";
 const SKYBLUE = "#019cf4";
-const GOLD = "#fec610";
 const GROUND_TINT = "#fff6e1"; // 아이보리 — 지면 살짝 밝게
 
 // 카메라 틸트/오빗 제한 (지면 아래로 뒤집히지 않게)
@@ -141,45 +139,96 @@ function MonsterMarker({
   point: GroundPoint;
   onTrigger?: () => void;
 }) {
+  // 3D는 SVG 원본크기(112px) 래스터화로 확대 시 깨져 → 고해상 PNG(512px) + 필터링 설정.
+  const texture = useTexture("/images/mk_monster@3d.png", (t) => {
+    t.colorSpace = THREE.SRGBColorSpace; // 색 정확
+    t.anisotropy = 8; // 기울어진 각도에서도 선명
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true;
+    t.needsUpdate = true;
+  });
+  const floatRef = useRef<THREE.Group>(null);
+  // 마커마다 위상을 다르게(worldX 기반) → 동시에 안 흔들려 자연스러움.
+  const phase = point.worldX * 12;
+
+  // 위아래 둥둥 — 책 빌보드만 y로 부드럽게 오르내림.
+  useFrame(({ clock }) => {
+    if (floatRef.current) {
+      floatRef.current.position.y =
+        0.075 + Math.sin(clock.getElapsedTime() * 2.4 + phase) * 0.014;
+    }
+  });
+
   return (
     <group position={[point.worldX, 0, point.worldZ]}>
-      {/* 발광 디스크(골드) — 몬스터 발밑 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
-        <circleGeometry args={[0.028, 32]} />
-        <meshBasicMaterial color={GOLD} transparent opacity={0.85} />
+      {/* 바닥 그림자 — 지면에 고정(책과 함께 안 움직임). 타원처럼 납작하게. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={[1, 0.5, 1]}>
+        <circleGeometry args={[0.05, 32]} />
+        <meshBasicMaterial color="#12213a" transparent opacity={0.16} depthWrite={false} />
       </mesh>
 
-      {/* 빌보드 토큰 — 항상 카메라를 향함 */}
-      <Billboard position={[0, 0.05, 0]}>
-        <mesh onPointerDown={onTrigger ? (e) => { e.stopPropagation(); onTrigger(); } : undefined}>
-          <circleGeometry args={[0.026, 32]} />
-          <meshBasicMaterial color={GOLD} />
-        </mesh>
-        <mesh position={[0, 0, -0.001]}>
-          <ringGeometry args={[0.026, 0.03, 32]} />
-          <meshBasicMaterial color={NAVY} />
+      {/* 책 마커 이미지 — 항상 카메라를 향함 + 둥둥 float (그림자와 분리) */}
+      <Billboard ref={floatRef} position={[0, 0.075, 0]}>
+        <mesh
+          onPointerDown={
+            onTrigger
+              ? (e) => {
+                  e.stopPropagation();
+                  onTrigger();
+                }
+              : undefined
+          }
+        >
+          <planeGeometry args={[0.13, 0.099]} />
+          <meshBasicMaterial
+            map={texture}
+            transparent
+            toneMapped={false}
+            depthWrite={false}
+          />
         </mesh>
       </Billboard>
     </group>
   );
 }
 
-// 내 위치 마커 — 스카이블루 점 + 흰 링(지면).
+// 내 위치 마커 — 파란 레이더 번짐(지면 확장) + 내비게이션 화살표 마커 이미지(빌보드).
 function MyMarker({ point }: { point: GroundPoint }) {
+  const texture = useTexture("/images/mk_player.png");
+  const radarRef = useRef<THREE.Mesh>(null);
+
+  // 레이더 번짐: 지면 원이 중심에서 퍼지며 사라지는 것을 반복(2D animate-ping과 동일 감).
+  useFrame(({ clock }) => {
+    const m = radarRef.current;
+    if (!m) return;
+    const t = (clock.getElapsedTime() % 1.6) / 1.6; // 0..1 루프
+    m.scale.setScalar(1 + t * 2.4); // 확장
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.4 * (1 - t); // 페이드아웃
+  });
+
   return (
     <group position={[point.worldX, 0, point.worldZ]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]}>
-        <circleGeometry args={[0.04, 32]} />
-        <meshBasicMaterial color={SKYBLUE} transparent opacity={0.35} />
+      {/* 파란 레이더 번짐(지면) */}
+      <mesh ref={radarRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]}>
+        <circleGeometry args={[0.03, 40]} />
+        <meshBasicMaterial
+          color={SKYBLUE}
+          transparent
+          opacity={0.4}
+          depthWrite={false}
+        />
       </mesh>
-      <Billboard position={[0, 0.03, 0]}>
+      {/* 화살표 마커 이미지 — 항상 카메라를 향함 */}
+      <Billboard position={[0, 0.05, 0]}>
         <mesh>
-          <circleGeometry args={[0.016, 32]} />
-          <meshBasicMaterial color={SKYBLUE} />
-        </mesh>
-        <mesh position={[0, 0, -0.001]}>
-          <ringGeometry args={[0.016, 0.022, 32]} />
-          <meshBasicMaterial color="#ffffff" />
+          <planeGeometry args={[0.09, 0.0945]} />
+          <meshBasicMaterial
+            map={texture}
+            transparent
+            toneMapped={false}
+            depthWrite={false}
+          />
         </mesh>
       </Billboard>
     </group>

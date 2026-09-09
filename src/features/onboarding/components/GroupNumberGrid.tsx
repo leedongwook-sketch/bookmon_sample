@@ -1,42 +1,15 @@
 "use client";
 
-import { ASSETS } from "@/constants/assets";
 import type { PlayGroup } from "@/types";
 
-// group_num_*.svg 스프라이트 지오메트리(실측). 10×2 = 20칸.
-const CELL = 35.1281; // 셀 한 변(px)
-const PITCH = 40.9082; // 셀 간격(셀+거터)
-const ORIGIN = 0.525888; // 첫 셀 좌상단 오프셋
-const SVG_W = 405;
-const SVG_H = 78;
-const COLS = 10;
-
-// 추출 창을 셀보다 여백(MARGIN)만큼 키워 셀 상/하단이 빡빡하게 잘리지 않게 한다.
-// (거터 ≈ 2.9px/변. 그보다 작게 잡아 옆 칸이 안 비치도록.)
-const MARGIN = 2.2;
-const WIN = CELL + MARGIN * 2; // 실제로 보여줄 창 한 변
-
-// 창을 컨테이너(=1칸)에 맞춰 확대하는 배율.
-const BG_SIZE = `${(SVG_W / WIN) * 100}% ${(SVG_H / WIN) * 100}%`;
-
-// 칸 인덱스(0~19) → background-position(%). 창 좌상단 = 셀 좌상단 − MARGIN.
-function cellPosition(index: number): string {
-  const col = index % COLS;
-  const row = Math.floor(index / COLS);
-  const left = ORIGIN + col * PITCH - MARGIN;
-  const top = ORIGIN + row * PITCH - MARGIN;
-  const x = (left / (SVG_W - WIN)) * 100;
-  const y = (top / (SVG_H - WIN)) * 100;
-  return `${x}% ${y}%`;
-}
-
 /**
- * 모둠 번호(1~20) 선택 그리드 — group_num_noselect/select.svg 스프라이트를 칸별로 잘라 버튼화.
- * 선택 시 배경 스프라이트만 교체(미선택=크림 / 선택=스카이블루). 숫자는 SVG에 baked.
+ * 모둠 번호(1~20) 선택 그리드 — 참고 이미지대로 10열 2행 (CSS 재현, 이미지 미사용).
+ * Image #8/#9 실측:
+ *  - 미선택(기본): 크림 면(#fff3da) + 파란 테두리(#366ab4) + 남색 숫자(#124889)
+ *  - 선택: 파란 그라데이션 채움(#33b3f5→#3575bf) + 진파랑 테두리 + 흰색 숫자
  *
  * - 버튼에 min-h-0/min-w-0 → 전역 button 최소 48px 강제를 풀어 정사각형 유지(세로 눌림 방지).
- * - 추출 창에 MARGIN 여백 포함 → 셀 상/하단이 잘리지 않고 여유 있게 보인다.
- * - gap-2로 셀 사이 간격 확보.
+ * - gap-2로 셀 사이 간격 확보(참고 이미지 간격 재현).
  */
 export function GroupNumberGrid({
   groups,
@@ -48,11 +21,11 @@ export function GroupNumberGrid({
   onSelect: (group: PlayGroup) => void;
 }) {
   return (
-    <div className="grid grid-cols-10 gap-2">
-      {groups.map((g, i) => {
-        const num = parseInt(g.name, 10);
-        const cellIndex = num >= 1 && num <= 20 ? num - 1 : i;
+    <div className="flex w-full flex-wrap justify-center gap-[6px]">
+      {groups.map((g) => {
         const selected = selectedKey === g.id;
+        // 서버 이름("1모둠"/"1조")에서 **번호만** 표시. 접근성 라벨엔 전체 이름 유지.
+        const label = g.name.match(/\d+/)?.[0] ?? g.name;
         return (
           <button
             key={g.id}
@@ -60,17 +33,15 @@ export function GroupNumberGrid({
             aria-label={g.name}
             aria-pressed={selected}
             onClick={() => onSelect(g)}
-            style={{
-              aspectRatio: "1 / 1",
-              backgroundImage: `url(${
-                selected ? ASSETS.groupNumSelected : ASSETS.groupNumIdle
-              })`,
-              backgroundSize: BG_SIZE,
-              backgroundPosition: cellPosition(cellIndex),
-              backgroundRepeat: "no-repeat",
-            }}
-            className="min-h-0 min-w-0 w-full transition-transform duration-100 active:translate-y-[1px]"
-          />
+            /* 피그마: 128.89→44 정사각, radius 26.48→9, border 8→3px, 기본 #FFF3DA/#366AB4, 선택 gradient #30BDFF→#366AB4 */
+            className={`flex h-[44px] w-[44px] min-h-0 min-w-0 items-center justify-center rounded-[9px] border-[3px] border-[#366ab4] text-base font-extrabold leading-none transition-all duration-100 active:translate-y-[1px] ${
+              selected
+                ? "bg-gradient-to-b from-[#30bdff] to-[#366ab4] text-white"
+                : "bg-[#fff3da] text-[#124889]"
+            }`}
+          >
+            {label}
+          </button>
         );
       })}
     </div>

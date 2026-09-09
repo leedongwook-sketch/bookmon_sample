@@ -26,6 +26,9 @@ export function useOnboardingFlow() {
 
   // ── 사용자 입력/선택 상태 ─────────────────────
   const [keyword, setKeyword] = useState("");
+  // pendingSchool: 목록에서 클릭해 **하이라이트만** 된 학교(아직 확정 X). "다음" 눌러야 확정.
+  const [pendingSchool, setPendingSchool] =
+    useState<SchoolSearchResult | null>(null);
   const [selectedSchool, setSelectedSchool] =
     useState<SchoolSearchResult | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<PlayGroup | null>(null);
@@ -47,10 +50,21 @@ export function useOnboardingFlow() {
     school.search(keyword); // 다음 버튼은 항상 활성 — 입력값 그대로 검색
   };
 
-  const handleSelectSchool = (s: SchoolSearchResult) => {
-    setSelectedSchool(s); // 학교(=행사) 확정
-    setSelectedGroup(null); // 모둠 선택 초기화
-    group.fetchGroups(s.id); // 행사 ID로 모둠 조회
+  // 목록 클릭 = 하이라이트(선택 대기)만. 확정/이동은 "다음"에서.
+  const handlePickSchool = (s: SchoolSearchResult) => setPendingSchool(s);
+
+  // "다음" = pending 학교 확정 → 모둠 조회 → (selectedSchool 세팅으로) 모둠 선택 단계로 이동.
+  const handleConfirmSchool = () => {
+    if (!pendingSchool) return; // 미선택 시 무시
+    setSelectedSchool(pendingSchool);
+    setSelectedGroup(null);
+    group.fetchGroups(pendingSchool.id);
+  };
+
+  // 학교 선택 → 학교 입력(뒤로 코너 버튼): 검색 결과 비우고 하이라이트 초기화.
+  const handleBackToInput = () => {
+    school.reset();
+    setPendingSchool(null);
   };
 
   const handleSelectGroup = (g: PlayGroup) => {
@@ -63,6 +77,7 @@ export function useOnboardingFlow() {
   // BM-104(모둠 선택) → BM-103(학교 선택)으로 되돌리기.
   // selectedSchool을 비우면 schoolSelecting(검색 결과 유지)이 참이라 학교 선택 단계가 다시 노출된다.
   const handleBackToSchoolSelect = () => {
+    setPendingSchool(selectedSchool); // 이전 확정 학교를 하이라이트로 유지
     setSelectedSchool(null);
     setSelectedGroup(null);
   };
@@ -92,6 +107,7 @@ export function useOnboardingFlow() {
     // 입력 상태
     keyword,
     setKeyword,
+    pendingSchool,
     selectedSchool,
     selectedGroup,
     // 데이터 훅
@@ -105,7 +121,9 @@ export function useOnboardingFlow() {
     schoolSelecting,
     // 핸들러
     handleSearch,
-    handleSelectSchool,
+    handlePickSchool,
+    handleConfirmSchool,
+    handleBackToInput,
     handleSelectGroup,
     handleBackToSchoolSelect,
     handleStart,

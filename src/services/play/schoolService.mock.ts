@@ -130,6 +130,33 @@ const MOCK_GAMES: Game[] = [
     },
     location: { latitude: 37.2388, longitude: 127.2058 }, // 용인초 북동쪽
   },
+  {
+    // ⚠ [테스트] OX형 퀴즈 확인용 게임.
+    id: "game_4",
+    monster: {
+      id: "mon_wind",
+      koreanName: "바람 북몬",
+      englishName: "Wind Bookmon",
+      codeName: "WIND_BOOKMON",
+      thumbnail64Url: null,
+      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일 — 실서버 전환 시 null로
+      thumbnail256Url: null,
+      ...TEST_SPRITES("01"),
+    },
+    quiz: {
+      id: "quiz_4",
+      content: "바람은 공기가 움직여서 생기는 것이다.",
+      type: "OX",
+      choice1: "O (맞다)",
+      choice2: "X (틀리다)",
+      choice3: null,
+      choice4: null,
+      answer: 1, // O 가 정답
+      description: "바람은 공기의 움직임(기압 차)으로 생겨요.",
+      imageUrl: null,
+    },
+    location: { latitude: 37.2381, longitude: 127.2044 }, // 용인초 남쪽
+  },
 ];
 
 /**

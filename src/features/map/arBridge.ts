@@ -32,6 +32,7 @@ export interface ArReq {
   ts: number; // Date.now() — 만료 판정
   image: string; // 대표 이미지(= monster.thumbnail256Url). 없으면 "" → AR 내장 폴백.
   sprites: ArSprites; // AR 애니메이션 스프라이트 시트 4종. 각 항목 "" 가능(→ image 폴백).
+  captures: number; // 승리(포획 성공)에 필요한 명중 횟수. AR 이 1~10 로 클램프(없으면 3). 계약 v3.
   return: string; // 복귀 pathname(basePath 포함). 예: "/bookmon_sample/map"
 }
 export interface ArRes {
@@ -91,6 +92,7 @@ export function launchAr(game: Game): void {
     ts: Date.now(),
     image,
     sprites,
+    captures: 3, // 포획 성공 판정에 필요한 명중 횟수(AR 계약 v3). 기획 확정 시 게임/난이도별로 조정.
     // 복귀 경로 = 현재 pathname 그대로(2D /…/map 또는 3D /…/map3d, basePath 이미 포함).
     // withBase() 재적용 금지(이중 접두) — 계획서 §4-4.
     return: window.location.pathname,

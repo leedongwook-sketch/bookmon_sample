@@ -37,17 +37,19 @@ interface StepView {
 export function OnboardingFlow() {
   const router = useRouter();
   const setMode = useGameStore((s) => s.setMode);
+  const reset = useGameStore((s) => s.reset);
   const [step, setStep] = useState<TopStep>("mode-select");
   // 온보딩 배경을 진입 시 1회 랜덤 선택해 세션 내 고정(단계 전환에도 유지, 깜빡임 없음).
   const [background] = useState(pickOnboardingBackground);
   const flow = useOnboardingFlow();
 
   const handleSelectMode = (option: ModeOption) => {
+    reset(); // 모드 선택 시 이전 진행상황(게임/도감/지도) 초기화
     setMode(option.mode); // 선택 결과를 전역 상태(+localStorage)에 저장
     if (option.next) {
-      router.push(option.next); // 체험모드 → 지도로 이동
+      router.push(option.next); // 실행모드 → /play(현재 위치 OSM 지도)
     } else {
-      setStep("school"); // 실전모드 → 같은 스캐폴드 안에서 학교 단계로
+      setStep("school"); // 행사모드 → 같은 스캐폴드 안에서 학교 단계로
     }
   };
 
@@ -71,7 +73,7 @@ export function OnboardingFlow() {
       return {
         banner: "실행모드를 선택해 주세요",
         body: (
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <div className="flex flex-nowrap items-center justify-center gap-[34px]">
             {MODE_OPTIONS.map((option) => (
               <ModeCard
                 key={option.mode}
@@ -92,7 +94,7 @@ export function OnboardingFlow() {
         // 시작 버튼은 항상 활성 표시(딤 X) — 미선택 클릭은 handleStart가 무시.
         footer: (
           <CtaButton onClick={flow.handleStart}>
-            {flow.starting ? "불러오는 중…" : "시작"}
+            {flow.starting ? "불러오는 중…" : "다음"}
           </CtaButton>
         ),
         body: (
@@ -106,16 +108,19 @@ export function OnboardingFlow() {
       };
     }
 
-    // BM-103 학교 선택: 검색 결과가 있을 때 — 뒤로 → 학교 입력(BM-102, 검색결과 비움)
+    // BM-103 학교 선택: 검색 결과가 있을 때.
+    //  - 목록 클릭 = 파란 선택 하이라이트만(pendingSchool). 뒤로(코너) → 학교 입력.
+    //  - "다음" → 선택 학교 확정 후 모둠 선택(BM-104)으로 이동.
     if (flow.schoolSelecting) {
       return {
-        banner: "학교이름을 선택해 주세요",
-        onBack: flow.school.reset,
-        footer: <CtaButton onClick={flow.school.reset}>뒤로</CtaButton>,
+        banner: "학교 이름을 선택해 주세요",
+        onBack: flow.handleBackToInput,
+        footer: <CtaButton onClick={flow.handleConfirmSchool}>다음</CtaButton>,
         body: (
           <SchoolSelectStep
             results={flow.school.results}
-            onSelect={flow.handleSelectSchool}
+            selectedKey={flow.pendingSchool?.id}
+            onSelect={flow.handlePickSchool}
           />
         ),
       };
@@ -123,7 +128,7 @@ export function OnboardingFlow() {
 
     // BM-102 학교 입력: 학교 단계 기본 — 뒤로 → 모드선택(BM-101)
     return {
-      banner: "학교이름을 입력해 주세요",
+      banner: "학교 이름을 입력해 주세요",
       onBack: () => setStep("mode-select"),
       // 다음/검색중 모두 같은 CtaButton. 폼 밖이지만 form 속성으로 제출 연결.
       footer: (

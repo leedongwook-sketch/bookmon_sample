@@ -141,3 +141,64 @@ button,
     transform: translateY(0) scale(1);
   }
 }
+
+/* 정답 텍스트 — 작게 시작해 살짝 크게 튕겼다 정착(작아졌다 커지는 느낌). */
+@keyframes answer-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+  75% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 꽃가루(컨페티) — 중앙에서 각 방향으로 날아가며 회전+페이드아웃. 방향/회전은 인라인 --cx/--cy/--cr. */
+@keyframes confetti-fly {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(0.7);
+    opacity: 0;
+  }
+}
+
+/* 지도 몬스터 마커 — 위아래로 살짝 둥둥 뜨는 느낌(부드럽게 반복). */
+@keyframes marker-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* 유효성 흔들기 — 빈 입력 등에서 좌우로 짧고 빠르게 4회 흔든다(shake). */
+@keyframes shakeX {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  12.5%,
+  62.5% {
+    transform: translateX(-8px);
+  }
+  37.5%,
+  87.5% {
+    transform: translateX(8px);
+  }
+}

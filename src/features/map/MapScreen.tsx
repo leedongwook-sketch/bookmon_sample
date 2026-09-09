@@ -9,6 +9,7 @@ import { TestModeBanner } from "./TestModeBanner"; // ⚠ 테스트 전용(삭�
 import { useEncounterFlow } from "./useEncounterFlow";
 import { ArTestTriggers } from "./ArTestTrigger"; // ⚠ 테스트 전용(삭제 가능)
 import { projectToImage } from "./geo";
+import { MAP_GOLD_BUTTON } from "./mapButtonStyle";
 import type { EventMap, Game, GameLocation } from "@/types";
 
 const ZOOM = 2.5; // 화면 확대 배율 (전체 맞춤 대비 4배)
@@ -42,13 +43,16 @@ export function MapScreen() {
 }
 
 function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
-  // 이미 포획(퀴즈 성공→도감 추가)한 몬스터는 지도에서 제외 — 마커/미니맵/조우 모두 미포획만 대상.
+  // 순차 진행: 아직 시도하지 않은(collection 미기록) 몬스터 중 **첫 1개만** 지도에 표시.
+  //   → 마커·미니맵·조우 모두 이 activeGames 를 공유하므로 한 번에 한 마리씩만 노출된다.
+  //   (성공/실패 무관하게 collection 에 기록되면 다음 몬스터로 넘어간다.)
   const collection = useGameStore((s) => s.collection);
-  const activeGames = useMemo(
-    () =>
-      games.filter((g) => !collection.some((e) => e.monsterId === g.monster.id)),
-    [games, collection]
-  );
+  const activeGames = useMemo(() => {
+    const next = games.find(
+      (g) => !collection.some((e) => e.monsterId === g.monster.id)
+    );
+    return next ? [next] : [];
+  }, [games, collection]);
   const containerRef = useRef<HTMLDivElement>(null);
   const myPos = useMyPosition();
 
@@ -181,7 +185,7 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
       <Link
         href="/map3d"
         onPointerDown={(e) => e.stopPropagation()} // 지도 드래그로 번지지 않게
-        className="absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full border-2 border-navy bg-ivory/95 px-3 py-2 text-xs font-extrabold text-navy shadow-lg active:scale-95"
+        className={`absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-extrabold ${MAP_GOLD_BUTTON}`}
       >
         3D 지도
       </Link>
@@ -195,7 +199,6 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
         <MiniMap
           imageUrl={eventMap.imageUrl}
           aspect={`${natural.w} / ${natural.h}`}
-          dots={activeGames.map((g) => ({ id: g.id, ...project(eventMap, g.location) }))}
           me={meRatio}
         />
       )}
@@ -225,29 +228,47 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
-// 몬스터 1마리를 좌표 비율 위치에 마킹 (원 중심 = 좌표).
+// 몬스터 1마리를 좌표 비율 위치에 마킹 (책 마커 중심 = 좌표).
 function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
   const { x, y } = project(eventMap, game.location);
-  // 텍스트 요소 없이 노란 원만 표시. (몬스터명은 접근성용 aria-label로만 유지)
+  // 책 모양 마커(mk_monster.svg) + 위아래 둥둥 애니메이션. 몬스터명은 접근성용 aria-label.
+  //  - 바깥 div: 좌표 위치 + 중앙정렬(translate). 안쪽 div: float 애니메이션(translate 충돌 방지).
   return (
     <div
-      role="img"
-      aria-label={game.monster.koreanName}
-      className="absolute h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-navy bg-gold shadow-md"
+      className="absolute -translate-x-1/2 -translate-y-1/2"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
-    />
+    >
+      <div
+        role="img"
+        aria-label={game.monster.koreanName}
+        className="h-14 w-16 animate-[marker-float_2.2s_ease-in-out_infinite] drop-shadow-md"
+        style={{
+          backgroundImage: "url(/images/mk_monster.svg)",
+          backgroundSize: "contain",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "center",
+        }}
+      />
+    </div>
   );
 }
 
-// 내 위치 마킹 — 스카이블루 점 + 흰 링 + 맥동.
+// 내 위치 마킹 — 파란 레이더 번짐(맥동) + 내비게이션 화살표 마커 이미지(mk_player.png).
 function MyMarker({ ratio }: { ratio: XY }) {
   return (
     <div
       className="absolute -translate-x-1/2 -translate-y-1/2"
       style={{ left: `${ratio.x * 100}%`, top: `${ratio.y * 100}%` }}
     >
-      <span className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-skyblue/40" />
-      <span className="relative block h-5 w-5 rounded-full border-[3px] border-white bg-skyblue shadow-[0_0_0_2px_rgba(1,156,244,0.5)]" />
+      {/* 파란 레이더 번짐 — 중심에서 퍼지며 사라짐(마커 뒤) */}
+      <span className="absolute left-1/2 top-1/2 h-14 w-14 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-skyblue/40" />
+      {/* eslint-disable-next-line @next/next/no-img-element -- 지도 마커: next/image 불필요, 소형 정적 마커 */}
+      <img
+        src="/images/mk_player.png"
+        alt="내 위치"
+        className="relative block h-11 w-11"
+        draggable={false}
+      />
     </div>
   );
 }
@@ -256,12 +277,10 @@ function MyMarker({ ratio }: { ratio: XY }) {
 function MiniMap({
   imageUrl,
   aspect,
-  dots,
   me,
 }: {
   imageUrl: string;
   aspect: string;
-  dots: { id: string; x: number; y: number }[];
   me: XY;
 }) {
   return (
@@ -274,14 +293,6 @@ function MiniMap({
       {/* eslint-disable-next-line @next/next/no-img-element -- 미니맵 배경(비율 고정 박스) */}
       <img src={imageUrl} alt="" className="h-full w-full opacity-70" draggable={false} />
 
-      {/* 몬스터 점 */}
-      {dots.map((d) => (
-        <span
-          key={d.id}
-          className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-navy bg-gold"
-          style={{ left: `${d.x * 100}%`, top: `${d.y * 100}%` }}
-        />
-      ))}
 
       {/* 내 위치 점 */}
       <span

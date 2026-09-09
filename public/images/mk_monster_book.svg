@@ -1,0 +1,16 @@
+<svg width="116" height="88" viewBox="0 0 116 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 3D 텍스처용 — 퀴즈 프레임 스타일(파란 하드커버+흰 페이지+핑크 리본). 그림자 없음. -->
+  <!-- 파란 하드커버(펼친 바깥) -->
+  <path d="M58 16 C45 8 26 6 11 11 L11 64 C26 59 45 61 58 69
+           C71 61 90 59 105 64 L105 11 C90 6 71 8 58 16 Z"
+        fill="#366ab3" stroke="#124a8d" stroke-width="4" stroke-linejoin="round"/>
+  <!-- 흰 페이지(좌/우) -->
+  <path d="M58 20 C47 13 30 11 17 14 L17 60 C30 57 47 59 58 66 Z"
+        fill="#ffffff" stroke="#c9d2dc" stroke-width="2"/>
+  <path d="M58 20 C69 13 86 11 99 14 L99 60 C86 57 69 59 58 66 Z"
+        fill="#ffffff" stroke="#c9d2dc" stroke-width="2"/>
+  <path d="M58 20 L58 66" stroke="#c9d2dc" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- 핑크 리본 북마크 -->
+  <path d="M31 12 L43 12 L43 40 L37 34 L31 40 Z"
+        fill="#eb3c84" stroke="#c31f63" stroke-width="1.6" stroke-linejoin="round"/>
+</svg>

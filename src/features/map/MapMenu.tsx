@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useGameStore } from "@/store/gameStore";
 import { clearSavedGameState } from "@/lib/gameSession";
 import { CollectionLayer } from "@/features/collection/CollectionLayer";
+import { MAP_GOLD_BUTTON } from "./mapButtonStyle";
 
 // 지도 위에서 열리는 오버레이 종류. 메뉴 항목이 늘면 여기에 추가.
 type Overlay = "collection";
@@ -61,7 +62,7 @@ export function MapMenu() {
         aria-expanded={open}
         onPointerDown={stop}
         onClick={() => setOpen((v) => !v)}
-        className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[max(0.75rem,var(--spacing-safe-t))] z-30 flex h-11 w-11 items-center justify-center rounded-xl border-2 border-navy bg-ivory/95 shadow-lg active:translate-y-[1px]"
+        className={`absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[max(0.75rem,var(--spacing-safe-t))] z-30 flex h-12 w-12 items-center justify-center rounded-2xl ${MAP_GOLD_BUTTON}`}
       >
         <HamburgerIcon />
       </button>
@@ -76,14 +77,16 @@ export function MapMenu() {
           />
           <div
             onPointerDown={stop}
-            className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[calc(max(0.75rem,var(--spacing-safe-t))+3.25rem)] z-40 flex min-w-44 flex-col overflow-hidden rounded-xl border-2 border-navy bg-ivory shadow-xl"
+            className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[calc(max(0.75rem,var(--spacing-safe-t))+3.5rem)] z-40 flex min-w-44 flex-col overflow-hidden rounded-xl border-2 border-black bg-white shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
           >
-            {MENU.map((item) => (
+            {MENU.map((item, i) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => select(item.run)}
-                className="px-5 py-3 text-left text-base font-bold text-navy transition-colors hover:bg-cream active:bg-cream"
+                className={`px-5 py-3 text-left text-base font-bold text-black transition-colors hover:bg-[#f2f2f2] active:bg-[#e6e6e6] ${
+                  i > 0 ? "border-t border-black/15" : ""
+                }`}
               >
                 {item.label}
               </button>
@@ -162,7 +165,7 @@ function ConfirmDialog({
 
 function HamburgerIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="#12213a" strokeWidth="2.4" strokeLinecap="round">
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="#000000" strokeWidth="2.4" strokeLinecap="round">
       <line x1="4" y1="7" x2="20" y2="7" />
       <line x1="4" y1="12" x2="20" y2="12" />
       <line x1="4" y1="17" x2="20" y2="17" />

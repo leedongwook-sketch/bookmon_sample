@@ -35,7 +35,12 @@ interface GameState {
   ) => void;
   // 학교(행사) + 모둠만 먼저 저장 (게임 목록은 이후 단계에서 채움)
   setSchoolAndGroup: (event: SchoolSearchResult, group: PlayGroup) => void;
-  // 몬스터 포획 → 도감에 순차 추가(포획 순서 유지, 중복 무시). 이름·이미지도 함께 저장.
+  // 게임 목록만 교체/설정 (실행모드: 내 위치 주변 랜덤 몬스터를 클라이언트에서 구성해 넣을 때 사용).
+  setGames: (games: Game[]) => void;
+  // 퀴즈 결과 → 도감에 순차 기록(시도 순서 유지, 중복 무시). 성공/실패 여부(acquired)도 함께 저장.
+  //   success=true → 포획 성공(몬스터 이미지). false → 포획 실패(도감에서 실패 이미지로 표시).
+  recordResult: (monster: Monster, success: boolean) => void;
+  // 몬스터 포획(성공) — recordResult(monster, true) 의 별칭(하위호환).
   capture: (monster: Monster) => void;
   // 3D 지도 진입 시 계산한 지면 world 좌표를 캐시로 저장.
   setGroundLayout: (layout: GroundLayout) => void;
@@ -64,6 +69,8 @@ export const useGameStore = create<GameState>()(
       setGameData: (event, group, games, eventMap, playContext) =>
         set({ event, group, games, eventMap, playContext }),
 
+      setGames: (games) => set({ games }),
+
       setSchoolAndGroup: (event, group) =>
         set((state) => ({
           event,
@@ -75,14 +82,36 @@ export const useGameStore = create<GameState>()(
           },
         })),
 
-      capture: (monster) =>
+      recordResult: (monster, success) =>
         set((state) => {
-          // 이미 포획한 몬스터면 무시(중복 방지).
+          // 이미 기록된 몬스터면 무시(각 몬스터 1회만 — 중복 방지).
           if (state.collection.some((e) => e.monsterId === monster.id)) {
             return {};
           }
-          // 포획 순서대로 뒤에 추가 → 도감이 순차적으로 채워진다.
-          // 이미지: 도감 카드용 썸네일(작은→큰 순 폴백). 없으면 null(이름 표시).
+          // 시도 순서대로 뒤에 추가 → 도감이 좌상단부터 순차적으로 채워진다.
+          // 성공: 도감 카드용 썸네일(작은→큰 순 폴백). 실패: imageUrl null(도감이 실패 이미지로 표시).
+          return {
+            collection: [
+              ...state.collection,
+              {
+                monsterId: monster.id,
+                koreanName: monster.koreanName,
+                imageUrl: success
+                  ? (monster.thumbnail256Url ??
+                    monster.thumbnail128Url ??
+                    monster.thumbnail64Url ??
+                    null)
+                  : null,
+                acquired: success,
+                acquiredAt: new Date().toISOString(),
+              },
+            ],
+          };
+        }),
+
+      capture: (monster) =>
+        set((state) => {
+          if (state.collection.some((e) => e.monsterId === monster.id)) return {};
           return {
             collection: [
               ...state.collection,
