@@ -25,50 +25,17 @@ const MONSTER_POOL: Omit<Monster, "id">[] = [
   spriteHitUrl: null,
 }));
 
-// 퀴즈 풀 (CHOICE·OX 혼합) — answer 는 1-based.
+// 체험모드 퀴즈 — 단일 고정 문항.
 const QUIZ_POOL: Omit<Quiz, "id">[] = [
   {
-    content: "물이 얼면 무엇이 될까요?",
+    content: "책의 정령몬스터들을 찾아 떠나는, 이 독서 행사의 이름은?",
     type: "CHOICE",
-    choice1: "수증기",
-    choice2: "얼음",
-    choice3: "구름",
-    choice4: "비",
+    choice1: "BOOKMAN",
+    choice2: "BOOKMON",
+    choice3: "BOOKMOM",
+    choice4: "BOOKMONG",
     answer: 2,
-    description: "물이 얼면 고체인 얼음이 돼요.",
-    imageUrl: null,
-  },
-  {
-    content: "식물이 자라는 데 꼭 필요한 것은?",
-    type: "CHOICE",
-    choice1: "햇빛",
-    choice2: "어둠",
-    choice3: "소금",
-    choice4: "돌멩이",
-    answer: 1,
-    description: "식물이 자라려면 햇빛이 꼭 필요해요.",
-    imageUrl: null,
-  },
-  {
-    content: "바람은 공기가 움직여서 생기는 것이다.",
-    type: "OX",
-    choice1: "O (맞다)",
-    choice2: "X (틀리다)",
-    choice3: null,
-    choice4: null,
-    answer: 1,
-    description: "바람은 공기의 움직임(기압 차)으로 생겨요.",
-    imageUrl: null,
-  },
-  {
-    content: "해는 서쪽에서 뜬다.",
-    type: "OX",
-    choice1: "O (맞다)",
-    choice2: "X (틀리다)",
-    choice3: null,
-    choice4: null,
-    answer: 2,
-    description: "해는 동쪽에서 떠서 서쪽으로 져요.",
+    description: "정답은 BOOKMON(북몬)이에요!",
     imageUrl: null,
   },
 ];
@@ -91,14 +58,14 @@ function offset(
 }
 
 // 내 위치 주변에 랜덤 몬스터 1마리를 생성한다.
-//   - 방향: 0~360° 랜덤, 거리: 15~35m(도착 반경 10m 밖 → 걸어가서 근접 조우).
+//   - 방향: 0~360° 랜덤, 거리: 12~20m(요구 10~20m, 도착 반경 10m 밖 → 걸어가서 근접 조우.
+//     스폰 즉시 발동 방지를 위해 하한을 12m 로 둠).
 //   - id 는 매번 고유(seq)라 도감/조우 중복 없이 계속 새로 생성된다.
-//   - index 로 변주(부호 없는 난수 대용): 호출부가 증가 seq 를 넘겨 같은 위치 반복 방지.
 export function generateMonsterNear(pos: GameLocation, seq: number): Game {
   const monster = MONSTER_POOL[Math.floor(rnd(seq * 7 + 1) * MONSTER_POOL.length)];
   const quiz = QUIZ_POOL[Math.floor(rnd(seq * 13 + 3) * QUIZ_POOL.length)];
   const bearing = rnd(seq * 31 + 5) * 360;
-  const distance = 15 + rnd(seq * 17 + 9) * 20; // 15~35m
+  const distance = 12 + rnd(seq * 17 + 9) * 8; // 12~20m
   return {
     id: `practice_${seq}`,
     monster: { ...monster, id: `practice_mon_${seq}` },

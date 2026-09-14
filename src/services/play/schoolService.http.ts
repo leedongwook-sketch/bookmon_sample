@@ -42,6 +42,9 @@ export const httpSchoolService: SchoolService = {
   getGroups: (eventId) =>
     http<PlayGroup[]>(`/play/events/${encodeURIComponent(eventId)}/groups`),
 
+  // 게임은 이제 행사(Event) 단위 공유 목록(등록순). 모둠ID 엔드포인트도 하위호환으로
+  // 동일 목록을 반환하므로 그대로 사용한다(서버 보장). 모둠별 시작 위치는 group.startpoint 로
+  // 클라이언트에서 순환 정렬(useOnboardingFlow.handleStart). 필요 시 /play/events/{eventId}/games 로도 조회 가능.
   getGames: (groupId) =>
     http<Game[]>(`/play/groups/${encodeURIComponent(groupId)}/games`),
 

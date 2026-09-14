@@ -17,7 +17,7 @@ export interface ModeOption {
 export const MODE_OPTIONS: ModeOption[] = [
   {
     mode: "practice",
-    label: "실행모드",
+    label: "체험모드",
     variant: "primary",
     icon: "search",
     next: "/play", // 학교·모둠 생략, 현재 위치 기준 OSM 실지도(실행모드)로 바로 진입

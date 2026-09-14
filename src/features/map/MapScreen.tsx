@@ -228,9 +228,20 @@ function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
+// 마커가 지도 이미지 가장자리에서 잘리지 않게 살짝 안쪽(2%~98%)으로 클램프.
+function clampInset(v: number, inset = 0.02): number {
+  const lo = inset,
+    hi = 1 - inset;
+  return v < lo ? lo : v > hi ? hi : v;
+}
+
 // 몬스터 1마리를 좌표 비율 위치에 마킹 (책 마커 중심 = 좌표).
 function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
-  const { x, y } = project(eventMap, game.location);
+  const p = project(eventMap, game.location);
+  // 좌표가 지도 이미지(부지 bbox) 밖이어도 마커가 이미지 안에 머물도록 0~1 로 클램프.
+  //   가장자리에서 마커가 반쯤 잘리지 않게 살짝 안쪽(2%~98%)으로 제한.
+  const x = clampInset(p.x);
+  const y = clampInset(p.y);
   // 책 모양 마커(mk_monster.svg) + 위아래 둥둥 애니메이션. 몬스터명은 접근성용 aria-label.
   //  - 바깥 div: 좌표 위치 + 중앙정렬(translate). 안쪽 div: float 애니메이션(translate 충돌 방지).
   return (
@@ -241,7 +252,7 @@ function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
       <div
         role="img"
         aria-label={game.monster.koreanName}
-        className="h-14 w-16 animate-[marker-float_2.2s_ease-in-out_infinite] drop-shadow-md"
+        className="h-16 w-[60px] animate-[marker-float_2.2s_ease-in-out_infinite] drop-shadow-md"
         style={{
           backgroundImage: "url(/images/mk_monster.svg)",
           backgroundSize: "contain",

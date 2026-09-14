@@ -71,6 +71,9 @@ export interface GroundLayout {
 export interface PlayGroup {
   id: string; // 모둠 ID
   name: string; // 모둠명 "1조"
+  // 시작 핀 번호(1-based). 게임이 행사 단위 공유 목록(등록순)이라, 모둠마다 이 번호부터
+  // 시작해 순환 플레이한다. 예: 1이면 1번 게임부터, 3이면 3번 게임부터. (없으면 1로 취급)
+  startpoint: number;
 }
 
 // GET /play/groups/{groupId}/games — 게임(배치) 항목 = 몬스터 + 퀴즈 + 위치

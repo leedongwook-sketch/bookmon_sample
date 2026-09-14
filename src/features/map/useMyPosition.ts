@@ -11,10 +11,11 @@ import type { GameLocation } from "@/types";
 // ─────────────────────────────────────────────────────────────
 const USE_LIVE_POSITION = false;
 
-// 고정 테스트 좌표 — 용인초 부지 안 한 점(정북 정렬 부지 중앙 근처).
+// 고정 테스트 좌표 — 테스트 행사장(경명여중 일대) bbox 중앙 근처.
+//   bbox: 위도 [37.3647360, 37.3664570], 경도 [126.9294180, 126.9327090]
 const TEST_POSITION: GameLocation = {
-  latitude: 37.23825,
-  longitude: 127.20516,
+  latitude: 37.365596,
+  longitude: 126.931063,
 };
 
 // 이 값(m) 미만 이동은 같은 위치로 보고 상태를 갱신하지 않는다(리렌더 폭주/GPS 지터 방지).

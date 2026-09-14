@@ -9,7 +9,19 @@ import {
   useEventMap,
 } from "./useSchoolSearch";
 import { useGameStore } from "@/store/gameStore";
-import type { SchoolSearchResult, PlayGroup } from "@/types";
+import type { SchoolSearchResult, PlayGroup, Game } from "@/types";
+
+// 게임 목록을 startpoint(1-based 핀 번호) 기준으로 순환 정렬한다.
+//   예: startpoint=3 → [g3, g4, …, g_last, g1, g2]. 범위를 벗어나면 1로 폴백.
+function rotateByStartpoint(games: Game[], startpoint: number): Game[] {
+  if (games.length === 0) return games;
+  const n = games.length;
+  const start = Number.isFinite(startpoint)
+    ? ((Math.round(startpoint) - 1) % n + n) % n // 1-based → 0-based, 안전 wrap
+    : 0;
+  if (start === 0) return games;
+  return [...games.slice(start), ...games.slice(0, start)];
+}
 
 /**
  * 실전모드 온보딩 흐름의 상태·로직을 한곳에 모은 훅 (BM-102 → BM-103 → BM-104).
@@ -90,7 +102,9 @@ export function useOnboardingFlow() {
       eventMap.fetchEventMap(selectedSchool.id),
     ]);
     if (!data || !map) return; // 하나라도 실패 시 에러 안내 유지
-    setGameData(selectedSchool, selectedGroup, data, map, {
+    // 게임은 행사 단위 공유 목록(등록순). 모둠의 startpoint(1-based) 핀부터 시작하도록 순환 정렬.
+    const ordered = rotateByStartpoint(data, selectedGroup.startpoint);
+    setGameData(selectedSchool, selectedGroup, ordered, map, {
       eventId: selectedSchool.id,
       groupId: selectedGroup.id,
       mode: mode ?? "real",

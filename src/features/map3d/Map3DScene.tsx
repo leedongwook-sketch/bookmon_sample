@@ -156,7 +156,7 @@ function MonsterMarker({
   useFrame(({ clock }) => {
     if (floatRef.current) {
       floatRef.current.position.y =
-        0.075 + Math.sin(clock.getElapsedTime() * 2.4 + phase) * 0.014;
+        0.04 + Math.sin(clock.getElapsedTime() * 2.4 + phase) * 0.008;
     }
   });
 
@@ -164,12 +164,12 @@ function MonsterMarker({
     <group position={[point.worldX, 0, point.worldZ]}>
       {/* 바닥 그림자 — 지면에 고정(책과 함께 안 움직임). 타원처럼 납작하게. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]} scale={[1, 0.5, 1]}>
-        <circleGeometry args={[0.05, 32]} />
+        <circleGeometry args={[0.025, 32]} />
         <meshBasicMaterial color="#12213a" transparent opacity={0.16} depthWrite={false} />
       </mesh>
 
       {/* 책 마커 이미지 — 항상 카메라를 향함 + 둥둥 float (그림자와 분리) */}
-      <Billboard ref={floatRef} position={[0, 0.075, 0]}>
+      <Billboard ref={floatRef} position={[0, 0.04, 0]}>
         <mesh
           onPointerDown={
             onTrigger
@@ -180,7 +180,7 @@ function MonsterMarker({
               : undefined
           }
         >
-          <planeGeometry args={[0.13, 0.099]} />
+          <planeGeometry args={[0.06, 0.056]} />
           <meshBasicMaterial
             map={texture}
             transparent
@@ -211,7 +211,7 @@ function MyMarker({ point }: { point: GroundPoint }) {
     <group position={[point.worldX, 0, point.worldZ]}>
       {/* 파란 레이더 번짐(지면) */}
       <mesh ref={radarRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.003, 0]}>
-        <circleGeometry args={[0.03, 40]} />
+        <circleGeometry args={[0.015, 40]} />
         <meshBasicMaterial
           color={SKYBLUE}
           transparent
@@ -220,9 +220,9 @@ function MyMarker({ point }: { point: GroundPoint }) {
         />
       </mesh>
       {/* 화살표 마커 이미지 — 항상 카메라를 향함 */}
-      <Billboard position={[0, 0.05, 0]}>
+      <Billboard position={[0, 0.03, 0]}>
         <mesh>
-          <planeGeometry args={[0.09, 0.0945]} />
+          <planeGeometry args={[0.045, 0.047]} />
           <meshBasicMaterial
             map={texture}
             transparent

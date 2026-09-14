@@ -32,21 +32,23 @@ const MOCK_SCHOOLS: SchoolSearchResult[] = [
 ];
 
 // 모둠 1~20 (화면정의서: 모둠 번호 1~20). 디자인 group_num 그리드에 맞춤.
+// startpoint(시작 핀, 1-based) — 테스트로 모둠마다 다르게(게임 4개 기준 1~4 순환) 부여해
+// 모둠별 시작 위치 순환이 동작하는지 확인한다.
 const MOCK_GROUPS: PlayGroup[] = Array.from({ length: 20 }, (_, i) => ({
   id: `grp_${i + 1}`,
   name: `${i + 1}조`,
+  startpoint: (i % 4) + 1,
 }));
 
-// 용인초등학교(용인 처인구 김량장동) 행사장 지도 — 시작 시 GET /play/events/{eventId}/map 로 내려줄 데이터.
-// yongin-map.svg = 해당 학교 스타일 지도(정북 기준). 앵커 2점 = 실제 부지(OSM bbox) 대각 모서리.
-//   bbox: 위도 [37.2373587, 37.2390036], 경도 [127.2042943, 127.2060563]
-// x,y는 SVG 속 부지 경계(빨간 선)의 실측 위치 비율(래스터화 측정) → 코너가 아닌 경계에 맞춤.
-// ⚠ SVG 경계는 스타일화된 사변형이라 매핑은 근사(축별 선형). 현장 실측 시 보정.
+// 테스트 행사장 지도 — map.osm(OSM 내보내기) 영역을 OSM 타일로 렌더해 만든 실지도 PNG.
+//   scripts 로 tile.openstreetmap.org 타일을 bbox 에 정확히 맞춰 잘라 생성(© OpenStreetMap).
+//   bbox: 위도 [37.3647360, 37.3664570], 경도 [126.9294180, 126.9327090] (경명여중 일대)
+//   이미지가 bbox 에 정확히 대응하므로 앵커 = 이미지 4모서리(정북·직사각형): NW(0,0), SE(1,1).
 const MOCK_EVENT_MAP: EventMap = {
-  imageUrl: "/images/yongin-map.svg",
+  imageUrl: "/images/test-map.png",
   anchors: [
-    { x: 0.0392, y: 0.0127, latitude: 37.2390036, longitude: 127.2042943 }, // 북서(경계 좌상)
-    { x: 0.9704, y: 0.8886, latitude: 37.2373587, longitude: 127.2060563 }, // 남동(경계 우하)
+    { x: 0, y: 0, latitude: 37.366457, longitude: 126.929418 }, // 북서(좌상)
+    { x: 1, y: 1, latitude: 37.364736, longitude: 126.932709 }, // 남동(우하)
   ],
 };
 
@@ -76,7 +78,7 @@ const MOCK_GAMES: Game[] = [
       description: "불은 뜨거운 성질을 가지고 있어요.",
       imageUrl: null,
     },
-    location: { latitude: 37.2377, longitude: 127.2047 }, // 용인초 운동장 남서쪽
+    location: { latitude: 37.365769, longitude: 126.9308 }, // 부지 북서 (이미지 ~x0.42,y0.40, 중앙서 ~30m)
   },
   {
     id: "game_2",
@@ -102,7 +104,7 @@ const MOCK_GAMES: Game[] = [
       description: "물이 얼면 고체인 얼음이 돼요.",
       imageUrl: null,
     },
-    location: { latitude: 37.2384341, longitude: 127.205158 }, // 용인초 중앙(본관 앞)
+    location: { latitude: 37.365683, longitude: 126.931393 }, // 부지 북동 (이미지 ~x0.60,y0.45, 중앙서 ~30m)
   },
   {
     id: "game_3",
@@ -128,7 +130,7 @@ const MOCK_GAMES: Game[] = [
       description: "식물이 자라려면 햇빛이 꼭 필요해요.",
       imageUrl: null,
     },
-    location: { latitude: 37.2388, longitude: 127.2058 }, // 용인초 북동쪽
+    location: { latitude: 37.36539, longitude: 126.930734 }, // 부지 남서 (이미지 ~x0.40,y0.62, 중앙서 ~37m)
   },
   {
     // ⚠ [테스트] OX형 퀴즈 확인용 게임.
@@ -155,7 +157,7 @@ const MOCK_GAMES: Game[] = [
       description: "바람은 공기의 움직임(기압 차)으로 생겨요.",
       imageUrl: null,
     },
-    location: { latitude: 37.2381, longitude: 127.2044 }, // 용인초 남쪽
+    location: { latitude: 37.365424, longitude: 126.931327 }, // 부지 남동 (이미지 ~x0.58,y0.60, 중앙서 ~30m)
   },
 ];
 

@@ -19,16 +19,22 @@ import type { GameLocation } from "@/types";
 //     처리(성공/실패, 도감 기록)되면 다음 몬스터를 다시 주변에 생성.
 //   ⚠ Leaflet 은 window 필요 → 이 컴포넌트는 /play 페이지에서 dynamic(ssr:false)로 로드된다.
 
-// 마커 아이콘(공용 이미지). /images 경로는 배포 시 gh-pages-rewrite 가 basePath 접두.
-const ME_ICON = L.icon({
-  iconUrl: "/images/mk_player.png",
-  iconSize: [44, 46],
-  iconAnchor: [22, 23],
+// 내 위치 마커 — 파란 레이더 번짐(animate-ping) + 화살표 이미지(행사모드 2D와 동일 감).
+//   Leaflet divIcon 으로 HTML 구성. 클래스는 소스 리터럴이라 Tailwind JIT 가 감지.
+//   /images 경로는 배포 시 gh-pages-rewrite 가 basePath 접두.
+const ME_DIV_ICON = L.divIcon({
+  className: "",
+  html: `<div class="relative h-12 w-12">
+    <span class="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-skyblue/40"></span>
+    <img src="/images/mk_player.png" alt="" class="relative block" style="width:48px;height:48px" draggable="false" />
+  </div>`,
+  iconSize: [48, 48],
+  iconAnchor: [24, 24],
 });
 const MONSTER_ICON = L.icon({
   iconUrl: "/images/mk_monster.svg",
-  iconSize: [58, 50],
-  iconAnchor: [29, 42],
+  iconSize: [56, 60],
+  iconAnchor: [28, 54],
 });
 
 // 카메라 팔로우 — 내 위치가 바뀔 때마다 지도 중심을 이동.
@@ -64,8 +70,12 @@ export function PracticeMapScreen() {
   }, [active, hasFix]);
 
   // 조우 흐름(행사모드와 동일 훅) — 10m 근접 → AR → 퀴즈 → 도감.
+  //   추가: 책 마커를 클릭해도 조우 시작(테스트/수동 트리거).
   const myPos: GameLocation = position ?? { latitude: 0, longitude: 0 };
-  const flow = useEncounterFlow({ games: active ? [active] : [], myPos });
+  const { beginEncounter, layers } = useEncounterFlow({
+    games: active ? [active] : [],
+    myPos,
+  });
 
   // 첫 GPS 픽스 전/에러 안내.
   if (error) {
@@ -89,24 +99,30 @@ export function PracticeMapScreen() {
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <MapContainer
         center={[position.latitude, position.longitude]}
-        zoom={18}
+        zoom={19}
         zoomControl={false}
         attributionControl={false}
-        className="h-full w-full"
+        // isolate: Leaflet 내부 pane(z 200~700)을 독립 스택으로 가둬 상단 메뉴(MapMenu)가 지도에 안 가리게.
+        className="isolate h-full w-full"
       >
+        {/* OSM 표준 — 무료·API키 불필요·한국 z19 실타일 지원(깔끔). {s}=a~c 서브도메인.
+            ※ Esri Light Gray 등 미니멀 타일은 한국 고줌 미지원(플레이스홀더)이라 제외.
+              더 깔끔한 파스텔/그레이(CARTO·VWorld 등)는 API 키가 필요함. */}
         <TileLayer
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains="abc"
           maxZoom={19}
         />
         <FollowMe lat={position.latitude} lng={position.longitude} />
         <Marker
           position={[position.latitude, position.longitude]}
-          icon={ME_ICON}
+          icon={ME_DIV_ICON}
         />
         {active && (
           <Marker
             position={[active.location.latitude, active.location.longitude]}
             icon={MONSTER_ICON}
+            eventHandlers={{ click: () => beginEncounter(active) }}
           />
         )}
       </MapContainer>
@@ -115,7 +131,7 @@ export function PracticeMapScreen() {
       <MapMenu />
 
       {/* 조우 오버레이(흰 전환/기기안내/퀴즈/도감) — 지도 위 fixed. */}
-      {flow.layers}
+      {layers}
     </div>
   );
 }
