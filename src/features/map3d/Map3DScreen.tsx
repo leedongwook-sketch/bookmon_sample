@@ -6,8 +6,9 @@ import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/gameStore";
 import { useMyPosition } from "@/features/map/useMyPosition";
 import { useEncounterFlow } from "@/features/map/useEncounterFlow";
-import { TestModeBanner } from "@/features/map/TestModeBanner"; // ⚠ 테스트 전용(삭제 가능)
 import { MAP_GOLD_BUTTON } from "@/features/map/mapButtonStyle";
+import { isWithinEventBounds } from "@/features/map/geo";
+import { OutOfBoundsWarning } from "@/features/map/OutOfBoundsWarning";
 import { computeGroundLayout } from "./layout";
 import type { EventMap, Game, GroundLayout } from "@/types";
 
@@ -57,10 +58,17 @@ function Map3DView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
   }, [games, collection]);
 
   // 조우 흐름(2D와 동일 공용 훅). 근접 판정은 GPS lat/lng만 사용 — 3D 표시좌표(world)와 무관.
-  const { beginEncounter, layers: encounterLayers } = useEncounterFlow({
+  const { layers: encounterLayers } = useEncounterFlow({
     games: activeGames,
     myPos,
   });
+
+  // 내 위치가 행사장 bbox 밖이면 전체화면 레드 경고(2D와 동일).
+  const outOfBounds = !isWithinEventBounds(
+    eventMap.anchors,
+    myPos.latitude,
+    myPos.longitude
+  );
 
   // 지도 이미지 자연 크기(종횡비) 측정 → 지면 평면 비율 확정.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
@@ -89,8 +97,6 @@ function Map3DView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
           imageUrl={eventMap.imageUrl}
           layout={groundLayout}
           games={activeGames}
-          // ⚠ 테스트 전용: 몬스터 클릭으로 조우 수동 트리거(2D ArTestTriggers와 동일 성격).
-          onMonsterTrigger={beginEncounter}
         />
       ) : (
         // 준비 전(natural 측정/groundLayout 계산 대기) — 흰 화면 방지용 폴백.
@@ -99,8 +105,8 @@ function Map3DView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
         </div>
       )}
 
-      {/* ⚠ 테스트 전용: 상단 안내 배너 */}
-      <TestModeBanner />
+      {/* 위치 이탈 경고 — 행사장 구역 밖이면 전체화면 레드 깜빡임. */}
+      {outOfBounds && <OutOfBoundsWarning />}
 
       {/* 조우 오버레이 — 흰 전환/기기안내/퀴즈/도감(공용 훅). AR은 /ar/shooting/ 전체 이동.
           DOM 오버레이라 Canvas 위에 그대로 얹힘. */}

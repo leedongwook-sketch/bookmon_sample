@@ -36,6 +36,30 @@ export function isInsideImage(x: number, y: number): boolean {
   return x >= 0 && x <= 1 && y >= 0 && y <= 1;
 }
 
+// 내 위치가 행사장 bbox(2앵커) 안에 있는지 — 밖이면 "위치를 벗어났습니다" 경고.
+//   앵커: NW(x0,y0)=(north,west), SE(x1,y1)=(south,east). 정북·직사각형 가정.
+//   marginM: 경계에 여유(m)를 둬 GPS 지터로 경계에서 깜빡이는 것을 완화.
+export function isWithinEventBounds(
+  anchors: EventMap["anchors"],
+  latitude: number,
+  longitude: number,
+  marginM = 15
+): boolean {
+  const [nw, se] = anchors;
+  const north = Math.max(nw.latitude, se.latitude);
+  const south = Math.min(nw.latitude, se.latitude);
+  const east = Math.max(nw.longitude, se.longitude);
+  const west = Math.min(nw.longitude, se.longitude);
+  const dLat = marginM / 111_320; // 위도 여유(도)
+  const dLng = marginM / (111_320 * Math.cos((latitude * Math.PI) / 180)); // 경도 여유(도)
+  return (
+    latitude >= south - dLat &&
+    latitude <= north + dLat &&
+    longitude >= west - dLng &&
+    longitude <= east + dLng
+  );
+}
+
 // 두 GPS 좌표 사이 실제 거리(m) — 하버사인.
 export function distanceMeters(
   lat1: number,

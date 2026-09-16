@@ -73,11 +73,11 @@ export function MapMenu() {
           <div
             onPointerDown={stop}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 z-30"
+            className="fixed inset-0 z-[1100]"
           />
           <div
             onPointerDown={stop}
-            className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[calc(max(0.75rem,var(--spacing-safe-t))+3.5rem)] z-40 flex min-w-44 flex-col overflow-hidden rounded-xl border-2 border-black bg-white shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
+            className="absolute left-[max(0.75rem,var(--spacing-safe-l))] top-[calc(max(0.75rem,var(--spacing-safe-t))+3.5rem)] z-[1110] flex min-w-44 flex-col overflow-hidden rounded-xl border-2 border-black bg-white shadow-[0_2px_6px_rgba(0,0,0,0.2)]"
           >
             {MENU.map((item, i) => (
               <button
@@ -132,7 +132,7 @@ function ConfirmDialog({
     <div
       onPointerDown={onPointerDownCapture}
       onClick={onCancel}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/50 p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}

@@ -4,10 +4,15 @@ import type { Game, GameLocation, Monster, Quiz } from "@/types";
 //   내 현재 위치 주변에 랜덤으로 몬스터 1마리를 생성해 배치한다(행사모드와 달리 고정 배치 아님).
 //   몬스터/퀴즈는 아래 풀에서 무작위로 뽑아 조합한다.
 
-// 실행모드 몬스터/퀴즈 임시 썸네일(도감/AR 공용) — mock 과 동일한 번들 이미지.
-const TEST_THUMB = "/ar/shooting/assets/bookmon1.png";
+// 체험모드 몬스터 이미지 — sprite_Walk(01) 하나로 고정.
+//   AR(도감/AR 공용)에 이 이미지를 넘겨 로컬·배포 모두 동일 몬스터가 뜨게 한다.
+//   thumbnail256Url = arBridge 가 AR image 로 전달. spriteIdle/Left/Right 도 채워
+//   AR 의 dev-seed(핑크 01) 자동 주입을 무력화(hasSprites=true)한다. (배포 포함 test-sprites 경로)
+const FIX_IMG = "/images/monster/test-sprites/01_idle.png";
+const FIX_SPRITE_L = "/images/monster/test-sprites/01_run_L.png";
+const FIX_SPRITE_R = "/images/monster/test-sprites/01_run_R.png";
 
-// 몬스터 풀 (koreanName/codeName 만 다르게 — 이미지·스프라이트는 공용 테스트 리소스).
+// 몬스터 풀 (koreanName/codeName 만 다르게 — 이미지·스프라이트는 동일 고정 리소스).
 const MONSTER_POOL: Omit<Monster, "id">[] = [
   { koreanName: "불꽃 북몬", englishName: "Fire Bookmon", codeName: "FIRE" },
   { koreanName: "물방울 북몬", englishName: "Water Bookmon", codeName: "WATER" },
@@ -17,11 +22,11 @@ const MONSTER_POOL: Omit<Monster, "id">[] = [
 ].map((m) => ({
   ...m,
   thumbnail64Url: null,
-  thumbnail128Url: TEST_THUMB,
-  thumbnail256Url: null,
-  spriteIdleUrl: null,
-  spriteLeftUrl: null,
-  spriteRightUrl: null,
+  thumbnail128Url: FIX_IMG, // 도감 썸네일
+  thumbnail256Url: FIX_IMG, // AR 대표 이미지(arBridge → AR)
+  spriteIdleUrl: FIX_IMG,
+  spriteLeftUrl: FIX_SPRITE_L,
+  spriteRightUrl: FIX_SPRITE_R,
   spriteHitUrl: null,
 }));
 

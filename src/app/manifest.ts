@@ -18,10 +18,18 @@ export default function manifest(): MetadataRoute.Manifest {
     id: `${basePath}/`, // 설치 앱 식별자(배포 경로 기준)
     start_url: `${basePath}/`, // 홈 화면 실행 진입점 = 앱이 실제 서빙되는 경로
     scope: `${basePath}/`, // 이 경로 밖 이동은 브라우저로 — 앱 범위를 서브경로로 한정
-    display: "standalone", // 브라우저 UI 숨김(앱처럼)
+    // 전체화면(상태바까지 숨김) 우선, 미지원 시 standalone → browser 순 폴백.
+    //   안드로이드는 홈 화면 추가(PWA) 실행 시 fullscreen 적용돼 상태바 없이 몰입 실행된다.
+    display: "fullscreen",
+    display_override: ["fullscreen", "standalone"],
     orientation: "landscape", // 가로모드 기본
     background_color: "#fff6e1", // 아이보리 (스플래시 배경)
     theme_color: "#12213a", // 네이비
-    // TODO: 앱 아이콘(192/512 png) 확정 시 icons 추가 → 설치 배너/홈 아이콘 품질 향상.
+    icons: [
+      { src: `${basePath}/icons/icon-192.png`, sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: `${basePath}/icons/icon-512.png`, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: `${basePath}/icons/icon-192-maskable.png`, sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: `${basePath}/icons/icon-512-maskable.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
+    ],
   };
 }

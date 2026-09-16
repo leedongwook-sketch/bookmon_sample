@@ -37,11 +37,11 @@ const MONSTER_ICON = L.icon({
   iconAnchor: [28, 54],
 });
 
-// 카메라 팔로우 — 내 위치가 바뀔 때마다 지도 중심을 이동.
+// 카메라 팔로우 — 내 위치가 바뀔 때마다 지도 중심을 부드럽게 이동(마커 전환 0.5s와 동기).
 function FollowMe({ lat, lng }: { lat: number; lng: number }) {
   const map = useMap();
   useEffect(() => {
-    map.setView([lat, lng], map.getZoom(), { animate: true });
+    map.panTo([lat, lng], { animate: true, duration: 0.5, easeLinearity: 0.5 });
   }, [map, lat, lng]);
   return null;
 }
@@ -103,15 +103,17 @@ export function PracticeMapScreen() {
         zoomControl={false}
         attributionControl={false}
         // isolate: Leaflet 내부 pane(z 200~700)을 독립 스택으로 가둬 상단 메뉴(MapMenu)가 지도에 안 가리게.
-        className="isolate h-full w-full"
+        // smooth-markers: 마커 이동을 CSS 전환으로 부드럽게(globals.css).
+        // map-pastel: 타일에 파스텔+세피아 필터를 얹어 북몬 아이보리 톤으로(globals.css).
+        className="smooth-markers map-pastel isolate h-full w-full"
       >
-        {/* OSM 표준 — 무료·API키 불필요·한국 z19 실타일 지원(깔끔). {s}=a~c 서브도메인.
-            ※ Esri Light Gray 등 미니멀 타일은 한국 고줌 미지원(플레이스홀더)이라 제외.
-              더 깔끔한 파스텔/그레이(CARTO·VWorld 등)는 API 키가 필요함. */}
+        {/* CyclOSM — 무료·API키 불필요·한국 고줌 실타일 지원. OSM 표준보다 파스텔톤이라 예쁨.
+            + .map-pastel CSS 필터로 채도↓·살짝 세피아 → 북몬 아이보리 톤과 조화, 마커 가독성↑.
+            ※ CARTO·Stadia·VWorld 등 더 미니멀한 스타일은 API 키/계정이 필요해 제외. {s}=a~c. */}
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
           subdomains="abc"
-          maxZoom={19}
+          maxZoom={20}
         />
         <FollowMe lat={position.latitude} lng={position.longitude} />
         <Marker

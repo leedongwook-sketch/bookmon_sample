@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { BootSplash } from "@/components/layout/BootSplash";
-import { primeArPermissions } from "@/lib/device";
+import { primeArPermissions, enterFullscreen } from "@/lib/device";
+import { IosInstallGuide } from "./IosInstallGuide";
 
 /**
  * 앱 맨 앞 권한 안내 게이트.
@@ -18,7 +19,10 @@ export function StartGate({ onReady }: { onReady: () => void }) {
   const handleConfirm = async () => {
     if (busy) return;
     setBusy(true);
-    // [확인] 제스처 안에서 권한 요청 개시 → 허용/거부/미지원 무관하게 진행.
+    // [확인] 제스처 안에서: 전체화면 진입(안드로이드 몰입) + AR 권한 요청 개시.
+    //   전체화면은 반드시 이 제스처 안에서 호출해야 안드로이드 브라우저에서 적용된다.
+    enterFullscreen();
+    // 허용/거부/미지원 무관하게 진행.
     await primeArPermissions();
     onReady();
   };
@@ -27,6 +31,9 @@ export function StartGate({ onReady }: { onReady: () => void }) {
     <>
       {/* 원래 로딩 화면을 배경으로 */}
       <BootSplash />
+
+      {/* iOS 전용: 홈 화면 추가(전체화면) 안내 — iOS 미설치일 때만 1회 노출(자체 게이트). */}
+      <IosInstallGuide />
 
       {/* 권한 안내 알럿 — 작고 부드럽게 */}
       <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 px-6 backdrop-blur-[2px]">

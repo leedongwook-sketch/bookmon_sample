@@ -49,8 +49,51 @@ export function isMobileDevice(): boolean {
   return coarse && navigator.maxTouchPoints > 0;
 }
 
+// iOS(iPhone/iPad, iPadOS 위장 포함) 여부.
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iP(hone|od|ad)/.test(ua)) return true;
+  return /Macintosh/.test(ua) && navigator.maxTouchPoints > 1; // iPadOS 13+ 위장
+}
+
+// 홈 화면 추가(PWA)로 실행 중인지 — standalone/fullscreen 이면 이미 설치 실행.
+export function isStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  if (nav.standalone === true) return true; // iOS Safari 홈화면 실행
+  return (
+    typeof window.matchMedia === "function" &&
+    (window.matchMedia("(display-mode: standalone)").matches ||
+      window.matchMedia("(display-mode: fullscreen)").matches)
+  );
+}
+
 interface PermissionRequestable {
   requestPermission?: () => Promise<PermissionState | string>;
+}
+
+/**
+ * 전체화면(몰입) 진입 — 반드시 사용자 제스처(탭) 안에서 호출.
+ *   안드로이드 크롬 등은 이걸로 브라우저(미설치) 상태에서도 상태바/주소창 없이 몰입된다.
+ *   iOS Safari(iPhone)는 Fullscreen API 미지원 → 조용히 무시(홈 화면 추가 PWA 로 대체).
+ *   이미 전체화면이거나 실패해도 조용히 넘어간다.
+ */
+export function enterFullscreen(): void {
+  if (typeof document === "undefined") return;
+  if (document.fullscreenElement) return; // 이미 전체화면
+  const el = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void> | void;
+  };
+  try {
+    const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
+    const r = req?.call(el);
+    if (r && typeof (r as Promise<void>).catch === "function") {
+      (r as Promise<void>).catch(() => {});
+    }
+  } catch {
+    // 미지원/거부 → 무시
+  }
 }
 
 /**

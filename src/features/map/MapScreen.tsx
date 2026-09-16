@@ -5,10 +5,9 @@ import Link from "next/link";
 import { useGameStore } from "@/store/gameStore";
 import { useMyPosition } from "./useMyPosition";
 import { MapMenu } from "./MapMenu";
-import { TestModeBanner } from "./TestModeBanner"; // ⚠ 테스트 전용(삭제 가능)
 import { useEncounterFlow } from "./useEncounterFlow";
-import { ArTestTriggers } from "./ArTestTrigger"; // ⚠ 테스트 전용(삭제 가능)
-import { projectToImage } from "./geo";
+import { projectToImage, isWithinEventBounds } from "./geo";
+import { OutOfBoundsWarning } from "./OutOfBoundsWarning";
 import { MAP_GOLD_BUTTON } from "./mapButtonStyle";
 import type { EventMap, Game, GameLocation } from "@/types";
 
@@ -95,10 +94,17 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
   const meRatio = project(eventMap, myPos);
   const center = freeCenter ?? meRatio;
 
+  // 내 위치가 행사장 bbox 밖이면 전체화면 레드 경고.
+  const outOfBounds = !isWithinEventBounds(
+    eventMap.anchors,
+    myPos.latitude,
+    myPos.longitude
+  );
+
   // ── AR 조우 흐름 (공용 훅) ─────────────────────────────
   // 도착(반경 10m 진입)/테스트 클릭 → '몬스터 발견' 배너 → AR → 퀴즈 → 도감.
   // 상태머신·근접판정·오버레이 레이어는 useEncounterFlow(2D·3D 공용)로 추출됨.
-  const { beginEncounter, layers: encounterLayers } = useEncounterFlow({
+  const { layers: encounterLayers } = useEncounterFlow({
     games: activeGames,
     myPos,
   });
@@ -169,14 +175,8 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
 
           {/* 내 위치 마킹 */}
           <MyMarker ratio={meRatio} />
-
-          {/* ⚠ 테스트 전용: 마커 클릭으로 AR 조우 수동 트리거. 이 한 줄 + ArTestTrigger.tsx만 지우면 제거됨. */}
-          <ArTestTriggers games={activeGames} eventMap={eventMap} onTrigger={beginEncounter} />
         </div>
       )}
-
-      {/* ⚠ 테스트 전용: 상단 안내 배너 */}
-      <TestModeBanner />
 
       {/* 공통 메뉴 — 왼쪽 위 햄버거 (도감 / 초기화) */}
       <MapMenu />
@@ -189,6 +189,9 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
       >
         3D 지도
       </Link>
+
+      {/* 위치 이탈 경고 — 내 위치가 행사장 구역 밖이면 전체화면 레드 깜빡임. */}
+      {outOfBounds && <OutOfBoundsWarning />}
 
       {/* 조우 오버레이 — 흰 전환/기기안내/퀴즈/도감 (공용 훅에서 렌더). AR은 /ar/shooting/ 전체 이동.
           DOM 오버레이라 지도 위에 얹힘. */}
@@ -268,7 +271,8 @@ function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
 function MyMarker({ ratio }: { ratio: XY }) {
   return (
     <div
-      className="absolute -translate-x-1/2 -translate-y-1/2"
+      // GPS 갱신이 띄엄띄엄이라 left/top 이 순간이동하지 않게 부드럽게 전환(카메라 팔로우와 맞춤).
+      className="absolute -translate-x-1/2 -translate-y-1/2 transition-[left,top] duration-500 ease-out"
       style={{ left: `${ratio.x * 100}%`, top: `${ratio.y * 100}%` }}
     >
       {/* 파란 레이더 번짐 — 중심에서 퍼지며 사라짐(마커 뒤) */}
