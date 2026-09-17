@@ -89,19 +89,19 @@ export const useGameStore = create<GameState>()(
             return {};
           }
           // 시도 순서대로 뒤에 추가 → 도감이 좌상단부터 순차적으로 채워진다.
-          // 성공: 도감 카드용 썸네일(작은→큰 순 폴백). 실패: imageUrl null(도감이 실패 이미지로 표시).
+          // 성공/실패 모두 썸네일 저장(256→128→64 폴백) — 실패 칸도 해당 몬스터를
+          // 회색처리+X 로 보여준다(CollectionLayer). null 이면 도감이 baked 폴백 표시.
           return {
             collection: [
               ...state.collection,
               {
                 monsterId: monster.id,
                 koreanName: monster.koreanName,
-                imageUrl: success
-                  ? (monster.thumbnail256Url ??
-                    monster.thumbnail128Url ??
-                    monster.thumbnail64Url ??
-                    null)
-                  : null,
+                imageUrl:
+                  monster.thumbnail256Url ??
+                  monster.thumbnail128Url ??
+                  monster.thumbnail64Url ??
+                  null,
                 acquired: success,
                 acquiredAt: new Date().toISOString(),
               },

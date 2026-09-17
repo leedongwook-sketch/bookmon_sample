@@ -118,8 +118,8 @@ export function PracticeMapScreen() {
     );
   }
 
-  // 공용 이미지 지도(MapView) — 카메라 팔로우/드래그/마커/메뉴/조우 오버레이 모두 포함.
-  //   변형점(variant="practice"): 책 마커 탭 조우 + 내 위치 클램프, 3D/경고/미니맵 없음.
+  // 공용 이미지 지도(MapView) — 카메라 팔로우/드래그/마커/공통 HUD(도감·미니맵)/조우 오버레이 포함.
+  //   변형점(variant="practice"): 책 마커 탭 조우 + 내 위치 클램프, 3D 전환·이탈 경고 없음.
   return <MapView eventMap={eventMap} games={games} myPos={position} variant="practice" />;
 }
 

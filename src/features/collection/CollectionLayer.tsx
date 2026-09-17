@@ -92,32 +92,54 @@ function DexCell({ entry }: { entry?: CollectionEntry }) {
   const base =
     "flex aspect-square w-full items-center justify-center rounded-[3cqw] border-[0.7cqw]";
 
-  // 포획실패: 실패 이미지(회색 몬스터 + 빨간 X, 파란 테두리 baked). 이미지 자체가 칸을 채운다.
+  // 포획실패: 회색 프레임(CSS) + 몬스터 이미지 회색처리 + 빨간 X 오버레이.
+  //   프레임을 CSS로 그려 어떤 몬스터 이미지든 그대로 합성된다(baked 이미지 제거).
+  //   imageUrl 이 없으면(썸네일 미제공/구버전 기록) 기존 실패 baked 이미지로 폴백.
   if (entry && !entry.acquired) {
     return (
-      <div className="aspect-square w-full overflow-hidden rounded-[3cqw]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획실패 칸 이미지 */}
+      <div
+        role="img"
+        aria-label={`${entry.koreanName} 포획 실패`}
+        className={`${base} relative overflow-hidden border-[#4a4a4a] bg-gradient-to-b from-[#7a7a7a] to-[#565656] p-[1.2cqw]`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획실패 칸 몬스터 */}
         <img
-          src="/images/collect/non_catch_mon.png"
-          alt={`${entry.koreanName} 포획 실패`}
+          src={entry.imageUrl ?? "/images/collect/non_catch_mon.png"}
+          alt=""
           draggable={false}
-          className="h-full w-full object-cover"
+          className="object-contain grayscale"
+          style={{ width: "100%", height: "100%" }} // 전역 img{height:auto} 무력화
+        />
+        {/* 빨간 X — 두 대각 바(45°)로 그린다. 칸 크기에 비례(cqw). */}
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-1/2 h-[1.6cqw] w-[11cqw] -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-full bg-[#e23c3c] shadow-[0_0_2px_rgba(0,0,0,0.35)]"
+        />
+        <span
+          aria-hidden
+          className="absolute left-1/2 top-1/2 h-[1.6cqw] w-[11cqw] -translate-x-1/2 -translate-y-1/2 -rotate-45 rounded-full bg-[#e23c3c] shadow-[0_0_2px_rgba(0,0,0,0.35)]"
         />
       </div>
     );
   }
 
-  // 포획 성공: 성공 이미지(몬스터 + 파란 테두리 baked). 실패 칸과 대칭 구조.
-  //   ⚠ [테스트] 지금은 고정 이미지. 실서버 몬스터 썸네일 연동 시 entry.imageUrl 을 프레임 안에 합성.
+  // 포획 성공: 블루 그라데 프레임(CSS, #30BDFF→#366AB4 + 테두리 #0055CE) + 몬스터 이미지.
+  //   entry.imageUrl(썸네일 256→128→64 폴백 저장값) 합성 — 실서버 전환 시 그대로 동작.
+  //   imageUrl 이 없으면(구버전 기록) 기존 성공 baked 이미지로 폴백.
   if (entry?.acquired) {
     return (
-      <div className="aspect-square w-full overflow-hidden rounded-[3cqw]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획성공 칸 이미지 */}
+      <div
+        role="img"
+        aria-label={`${entry.koreanName} 포획 성공`}
+        className={`${base} overflow-hidden border-[#0055ce] bg-gradient-to-b from-[#30bdff] to-[#366ab4] p-[1.2cqw]`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- 도감 포획성공 칸 몬스터 */}
         <img
-          src="/images/collect/catch_mon.png"
-          alt={`${entry.koreanName} 포획 성공`}
+          src={entry.imageUrl ?? "/images/collect/catch_mon.png"}
+          alt=""
           draggable={false}
-          className="h-full w-full object-cover"
+          className="object-contain drop-shadow-[0_2px_3px_rgba(0,40,90,0.35)]"
+          style={{ width: "100%", height: "100%" }} // 전역 img{height:auto} 무력화
         />
       </div>
     );

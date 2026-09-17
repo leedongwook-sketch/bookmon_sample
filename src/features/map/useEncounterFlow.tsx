@@ -131,8 +131,13 @@ export function useEncounterFlow({
       if (result.ok) {
         // AR 포획 성공 → 퀴즈 진입. 정답/오답에 따라 도감에 성공/실패 기록(1회 시도).
         setQuizGame(result.game);
+      } else if (result.ar === "fail") {
+        // AR 포획 실패 → 도감에 실패 기록 + 도감 표시(퀴즈 없음. 기록되면 근접 가드가
+        // collection 기준으로 재트리거를 막아 별도 쿨다운 불필요).
+        recordResult(result.game.monster, false);
+        setShowCollection(true);
       } else {
-        // 실패/닫기 → 포획 없음. close 쿨다운을 남겨 근접 즉시 재트리거 루프 방지(§4-4).
+        // 닫기(close) → 시도 아님. 기록 없이 쿨다운만 남겨 근접 즉시 재트리거 루프 방지(§4-4).
         markDismissed(result.game.id);
       }
     };

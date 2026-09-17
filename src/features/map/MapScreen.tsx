@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useGameStore } from "@/store/gameStore";
 import { useMyPosition, useCompassHeading } from "./useMyPosition";
-import { MapMenu } from "./MapMenu";
 import { useEncounterFlow } from "./useEncounterFlow";
 import { projectToImage, isWithinEventBounds } from "./geo";
-import { OutOfBoundsWarning } from "./OutOfBoundsWarning";
-import { MAP_GOLD_BUTTON } from "./mapButtonStyle";
+import { MapHud } from "./MapHud";
 import type { EventMap, Game, GameLocation } from "@/types";
 
 const ZOOM = 2.5; // 화면 확대 배율 (전체 맞춤 대비 4배)
@@ -43,12 +40,12 @@ export function MapScreen() {
 }
 
 /**
- * 이미지 지도 뷰 — 행사모드(2D)와 체험모드가 공유한다.
+ * 이미지 지도 뷰 — 행사모드(2D)와 체험모드가 공유한다. 오버레이 UI 는 공통 HUD(MapHud).
  *  - myPos 는 소스 무관(행사=useMyPosition, 체험=usePracticePosition 픽스)하게 prop 으로 받는다.
  *  - variant:
- *      "event"    = 행사모드 기본. 3D 전환 버튼/이탈 경고/미니맵 표시.
- *      "practice" = 체험모드. 위 부가 UI 없음 + 책 마커 탭으로 조우 시작(수동 트리거)
- *                   + 내 위치가 이미지 밖이면 가장자리에 클램프(경고 대신 자연 처리).
+ *      "event"    = 행사모드 기본. HUD 에 3D 전환 버튼/이탈 경고 포함.
+ *      "practice" = 체험모드. 3D 전환·경고 없음(도감/미니맵은 동일) + 책 마커 탭으로 조우
+ *                   시작(수동 트리거) + 내 위치가 이미지 밖이면 가장자리에 클램프.
  */
 export function MapView({
   eventMap,
@@ -204,35 +201,27 @@ export function MapView({
         </div>
       )}
 
-      {/* 공통 메뉴 — 왼쪽 위 햄버거 (도감 / 초기화) */}
-      <MapMenu />
-
-      {/* 우상단: 3D 지도로 이동 (작은 버튼) — 행사모드 전용(체험모드는 3D 없음) */}
-      {!isPractice && (
-        <Link
-          href="/map3d"
-          onPointerDown={(e) => e.stopPropagation()} // 지도 드래그로 번지지 않게
-          className={`absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-extrabold ${MAP_GOLD_BUTTON}`}
-        >
-          3D 지도
-        </Link>
-      )}
-
-      {/* 위치 이탈 경고 — 내 위치가 행사장 구역 밖이면 전체화면 레드 깜빡임. */}
-      {outOfBounds && <OutOfBoundsWarning />}
+      {/* 공통 HUD — 좌상단 도감 / 우상단 2D↔3D 전환(행사 전용) / 우하단 미니맵 / 이탈 경고.
+          3화면(2D 행사·3D 행사·체험) 공용 레이어(MapHud). */}
+      <MapHud
+        modeSwitch={
+          isPractice ? undefined : { href: "/map3d", label: "3D 지도" }
+        }
+        miniMap={
+          ready && natural
+            ? {
+                imageUrl: eventMap.imageUrl,
+                aspect: `${natural.w} / ${natural.h}`,
+                me: meRatio,
+              }
+            : undefined
+        }
+        outOfBounds={outOfBounds}
+      />
 
       {/* 조우 오버레이 — 흰 전환/기기안내/퀴즈/도감 (공용 훅에서 렌더). AR은 /ar/shooting/ 전체 이동.
           DOM 오버레이라 지도 위에 얹힘. */}
       {encounterLayers}
-
-      {/* 미니맵 — 오른쪽 아래 고정(행사모드 전용). 지도 이미지 비율 박스에 내 위치를 점으로 표시. */}
-      {!isPractice && ready && natural && (
-        <MiniMap
-          imageUrl={eventMap.imageUrl}
-          aspect={`${natural.w} / ${natural.h}`}
-          me={meRatio}
-        />
-      )}
 
       {/* natural size 측정용(숨김). 로드되면 자연 크기 확보 → 위 레이어 렌더 */}
       {!natural && (
@@ -282,7 +271,8 @@ function MonsterMarker({
   //   가장자리에서 마커가 반쯤 잘리지 않게 살짝 안쪽(2%~98%)으로 제한.
   const x = clampInset(p.x);
   const y = clampInset(p.y);
-  // 책 모양 마커(mk_monster.svg) + 위아래 둥둥 애니메이션. 몬스터명은 접근성용 aria-label.
+  // 책 마커(mk_book.png — MK_BOOK.glb 3D 모델 스냅샷) + 위아래 둥둥 애니메이션.
+  // 몬스터명은 접근성용 aria-label.
   //  - 바깥 div: 좌표 위치 + 중앙정렬(translate). 안쪽 div: float 애니메이션(translate 충돌 방지).
   return (
     <div
@@ -296,7 +286,7 @@ function MonsterMarker({
         aria-label={game.monster.koreanName}
         className="h-16 w-[60px] animate-[marker-float_2.2s_ease-in-out_infinite] drop-shadow-md"
         style={{
-          backgroundImage: "url(/images/mk_monster.svg)",
+          backgroundImage: "url(/images/mk_book.png)",
           backgroundSize: "contain",
           backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
@@ -334,36 +324,6 @@ function MyMarker({ ratio }: { ratio: XY }) {
               }
             : undefined
         }
-      />
-    </div>
-  );
-}
-
-// 미니맵 — 지도 이미지 비율의 작은 박스. 몬스터=골드 점, 내 위치=스카이블루 점.
-function MiniMap({
-  imageUrl,
-  aspect,
-  me,
-}: {
-  imageUrl: string;
-  aspect: string;
-  me: XY;
-}) {
-  return (
-    <div
-      // 미니맵 위 터치가 지도 드래그로 번지지 않게 차단
-      onPointerDown={(e) => e.stopPropagation()}
-      className="absolute bottom-[max(0.75rem,var(--spacing-safe-b))] right-[max(0.75rem,var(--spacing-safe-r))] w-[22vw] min-w-[92px] max-w-[150px] overflow-hidden rounded-lg border-2 border-navy bg-ivory/90 shadow-lg"
-      style={{ aspectRatio: aspect }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element -- 미니맵 배경(비율 고정 박스) */}
-      <img src={imageUrl} alt="" className="h-full w-full opacity-70" draggable={false} />
-
-
-      {/* 내 위치 점 */}
-      <span
-        className="absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-skyblue"
-        style={{ left: `${me.x * 100}%`, top: `${me.y * 100}%` }}
       />
     </div>
   );

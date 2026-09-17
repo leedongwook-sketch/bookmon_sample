@@ -1,15 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { Billboard, OrbitControls, useTexture } from "@react-three/drei";
+import { Billboard, OrbitControls, useTexture, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { Game, GroundLayout, GroundPoint } from "@/types";
 
 // 3D 지도 씬 — 평면 지도 이미지를 지면(land)에 깔고, 공간(카메라)만 원근 틸트.
 //  - 건물을 돌출시키지 않는다(이미지 그대로 평면). 샘플(3d_map_sample.png) 스타일.
 //  - 드래그로 시점(오빗) 회전 + 원근 유지. polar 제한으로 지면 아래로 뒤집히지 않음.
-//  - 몬스터/내 위치는 지면 위 빌보드 마커(항상 카메라를 향함).
+//  - 몬스터=책 3D 모델(GLB), 내 위치=지면 위 빌보드 마커(항상 카메라를 향함).
 
 // ── 디자인 토큰(three는 CSS 변수를 못 읽어 hex 상수로 미러) ──
 const SKYBLUE = "#019cf4";
@@ -18,6 +18,14 @@ const GROUND_TINT = "#fff6e1"; // 아이보리 — 지면 살짝 밝게
 // 카메라 틸트/오빗 제한 (지면 아래로 뒤집히지 않게)
 const MIN_POLAR = Math.PI / 6; // 위에서 30° 이상 눕히지 않음(너무 top-down 방지)
 const MAX_POLAR = Math.PI / 2.6; // 지면 아래로 못 감(수평 근처에서 멈춤)
+
+// 몬스터 책 3D 모델 — /images 하위에 둬야 배포 시 gh-pages-rewrite 가 basePath 를 접두한다.
+//   (rewrite 는 따옴표 안 "/images/·/ar/" 리터럴만 처리 — scripts/gh-pages-rewrite.mjs)
+//   비압축 GLB(Draco/meshopt 없음)라 별도 디코더 불필요. 7.3MB 로 커서 모듈 로드 즉시 프리페치.
+const BOOK_GLB_URL = "/images/mk_book.glb";
+useGLTF.preload(BOOK_GLB_URL);
+// 모델 최대 치수를 이 크기(world)로 정규화 — 기존 빌보드 마커(0.06×0.056)와 비슷한 스케일.
+const BOOK_TARGET_SIZE = 0.06;
 
 /** Canvas + 씬. gameStore에서 계산·저장된 GroundLayout을 소비해 렌더한다. */
 export function Map3DScene({
@@ -165,7 +173,8 @@ function Ground({ imageUrl, layout }: { imageUrl: string; layout: GroundLayout }
   );
 }
 
-// 몬스터 마커 — 발밑 골드 발광 디스크 + 빌보드 토큰(골드 원 + 네이비 링).
+// 몬스터 마커 — 발밑 그림자 + 책 3D 모델(MK_BOOK.glb) 둥둥 float.
+//   GLB(7.3MB) 다운로드 동안엔 스냅샷 빌보드 폴백으로 빈 자리를 막는다.
 function MonsterMarker({
   point,
   onTrigger,
@@ -173,24 +182,15 @@ function MonsterMarker({
   point: GroundPoint;
   onTrigger?: () => void;
 }) {
-  // 3D는 SVG 원본크기(112px) 래스터화로 확대 시 깨져 → 고해상 PNG(512px) + 필터링 설정.
-  const texture = useTexture("/images/mk_monster@3d.png", (t) => {
-    t.colorSpace = THREE.SRGBColorSpace; // 색 정확
-    t.anisotropy = 8; // 기울어진 각도에서도 선명
-    t.minFilter = THREE.LinearMipmapLinearFilter;
-    t.magFilter = THREE.LinearFilter;
-    t.generateMipmaps = true;
-    t.needsUpdate = true;
-  });
   const floatRef = useRef<THREE.Group>(null);
   // 마커마다 위상을 다르게(worldX 기반) → 동시에 안 흔들려 자연스러움.
   const phase = point.worldX * 12;
 
-  // 위아래 둥둥 — 책 빌보드만 y로 부드럽게 오르내림.
+  // 위아래 둥둥 — 책(모델/폴백)만 y로 부드럽게 오르내림. 발밑 정렬이라 살짝 띄운다.
   useFrame(({ clock }) => {
     if (floatRef.current) {
       floatRef.current.position.y =
-        0.04 + Math.sin(clock.getElapsedTime() * 2.4 + phase) * 0.008;
+        0.015 + Math.sin(clock.getElapsedTime() * 2.4 + phase) * 0.008;
     }
   });
 
@@ -202,28 +202,79 @@ function MonsterMarker({
         <meshBasicMaterial color="#12213a" transparent opacity={0.16} depthWrite={false} />
       </mesh>
 
-      {/* 책 마커 이미지 — 항상 카메라를 향함 + 둥둥 float (그림자와 분리) */}
-      <Billboard ref={floatRef} position={[0, 0.04, 0]}>
-        <mesh
-          onPointerDown={
-            onTrigger
-              ? (e) => {
-                  e.stopPropagation();
-                  onTrigger();
-                }
-              : undefined
-          }
-        >
-          <planeGeometry args={[0.06, 0.056]} />
-          <meshBasicMaterial
-            map={texture}
-            transparent
-            toneMapped={false}
-            depthWrite={false}
-          />
-        </mesh>
-      </Billboard>
+      {/* 책 3D 모델 — 둥둥 float(그림자와 분리). 로딩 중엔 스냅샷 빌보드 폴백. */}
+      <group ref={floatRef} position={[0, 0.015, 0]}>
+        <Suspense fallback={<BookSpriteFallback onTrigger={onTrigger} />}>
+          <BookModel onTrigger={onTrigger} />
+        </Suspense>
+      </group>
     </group>
+  );
+}
+
+// 책 3D 모델 — GLB 씬을 마커별로 클론해 크기 정규화(최대 치수=BOOK_TARGET_SIZE) 후
+// 바닥(min.y)이 그룹 원점에 오게 발밑 정렬한다(모델 원 단위·원점과 무관하게 일정).
+function BookModel({ onTrigger }: { onTrigger?: () => void }) {
+  const { scene } = useGLTF(BOOK_GLB_URL);
+  const book = useMemo(() => {
+    const obj = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = box.getSize(new THREE.Vector3());
+    const s = BOOK_TARGET_SIZE / (Math.max(size.x, size.y, size.z) || 1);
+    obj.scale.setScalar(s);
+    obj.position.y = -box.min.y * s;
+    return obj;
+  }, [scene]);
+
+  return (
+    <group
+      onPointerDown={
+        onTrigger
+          ? (e) => {
+              e.stopPropagation();
+              onTrigger();
+            }
+          : undefined
+      }
+    >
+      <primitive object={book} />
+    </group>
+  );
+}
+
+// GLB 로딩 폴백 — 2D 마커와 동일한 책 스냅샷(mk_book.png) 빌보드.
+//   스냅샷 비율 170:256 에 맞춰 높이 0.056(기존 마커 스케일) 기준 폭 산출.
+function BookSpriteFallback({ onTrigger }: { onTrigger?: () => void }) {
+  const texture = useTexture("/images/mk_book.png", (t) => {
+    t.colorSpace = THREE.SRGBColorSpace; // 색 정확
+    t.anisotropy = 8; // 기울어진 각도에서도 선명
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.generateMipmaps = true;
+    t.needsUpdate = true;
+  });
+
+  return (
+    <Billboard position={[0, 0.028, 0]}>
+      <mesh
+        onPointerDown={
+          onTrigger
+            ? (e) => {
+                e.stopPropagation();
+                onTrigger();
+              }
+            : undefined
+        }
+      >
+        <planeGeometry args={[0.056 * (170 / 256), 0.056]} />
+        <meshBasicMaterial
+          map={texture}
+          transparent
+          toneMapped={false}
+          depthWrite={false}
+        />
+      </mesh>
+    </Billboard>
   );
 }
 

@@ -104,10 +104,13 @@ export function launchAr(game: Game): void {
   window.location.assign(withBase("/ar/shooting/index.html"));
 }
 
-// ── 복귀 결과 소비: 검증 게이트(§4-2) 통과 시에만 { ok, game } 반환 ──
+// ── 복귀 결과 소비: 검증 게이트(§4-2) 통과 시에만 { ok, ar, game } 반환 ──
 // 통과/실패 무관하게 req·res 를 1회 소비(삭제)해 리플레이/새로고침 재실행을 차단한다.
 // 호출부는 반드시 하이드레이션(games 준비) 완료 후 호출할 것(§4-4 High).
-export function consumeArResult(games: Game[]): { ok: boolean; game: Game } | null {
+// ar 원값(success/fail/close)도 반환 — fail(포획실패 기록+도감)과 close(무반응+쿨다운)는 처리가 다르다.
+export function consumeArResult(
+  games: Game[]
+): { ok: boolean; ar: ArRes["ar"]; game: Game } | null {
   const res = readJson<ArRes>(RES_KEY);
   if (!res) return null; // 결과 없음 → AR 복귀 아님
 
@@ -122,8 +125,8 @@ export function consumeArResult(games: Game[]): { ok: boolean; game: Game } | nu
   const game = games.find((g) => g.id === req.mid); // mid = game.id (신뢰된 req에서만 취함)
   if (!game) return null;
 
-  // success 만 포획. fail/close 는 ok=false (호출부가 페이드/쿨다운만 처리).
-  return { ok: res.ar === "success", game };
+  // success 만 포획(ok). fail/close 구분은 ar 로 — 호출부에서 실패 기록/쿨다운 분기.
+  return { ok: res.ar === "success", ar: res.ar, game };
 }
 
 // ── close 쿨다운(§4-4) — 근접 재트리거 루프 방지 ──
