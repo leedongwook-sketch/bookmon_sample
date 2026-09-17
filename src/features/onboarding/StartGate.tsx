@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { BootSplash } from "@/components/layout/BootSplash";
-import { primeArPermissions, enterFullscreen } from "@/lib/device";
+import { primeArPermissions, enterFullscreen, markFullscreenWanted } from "@/lib/device";
 import { IosInstallGuide } from "./IosInstallGuide";
 
 /**
@@ -22,6 +22,7 @@ export function StartGate({ onReady }: { onReady: () => void }) {
     // [확인] 제스처 안에서: 전체화면 진입(안드로이드 몰입) + AR 권한 요청 개시.
     //   전체화면은 반드시 이 제스처 안에서 호출해야 안드로이드 브라우저에서 적용된다.
     enterFullscreen();
+    markFullscreenWanted(); // AR 진입/복귀로 풀려도 첫 탭에 재진입하도록 의사 기록.
     // 허용/거부/미지원 무관하게 진행.
     await primeArPermissions();
     onReady();

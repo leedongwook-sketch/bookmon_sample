@@ -19,8 +19,10 @@ export function PillSelectList<T>({
   onSelect,
   selectedKey,
 }: PillSelectListProps<T>) {
+  // max-h 96 = 온보딩 패널 고정 본문 높이(OnboardingScaffold h-153 - pt19 - pb38)와 일치.
+  // 1행(58+py16=74) 전부 + 2행째 12px가 살짝 보여 스크롤 가능함을 암시한다.
   return (
-    <div className="max-h-[240px] w-full overflow-x-hidden overflow-y-auto px-1 py-2">
+    <div className="max-h-[96px] w-full overflow-x-hidden overflow-y-auto px-1 py-2">
       <div className="grid grid-cols-2 gap-[10px]">
         {items.map((item, i) => {
           const selected = getKey(item) === selectedKey;

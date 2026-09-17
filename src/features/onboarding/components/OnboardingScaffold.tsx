@@ -102,14 +102,20 @@ export function OnboardingScaffold({
                 {banner}
               </p>
 
-              {/* 내부 패널(layout2) — radius 45.39→15, pad 56.74/113.47→19/38(하단 2배), 흰→#E1E1E1 그라데. */}
-              <div className="flex w-full flex-col items-center gap-[5px] rounded-[15px] bg-gradient-to-b from-[#ffffff] to-[#e1e1e1] px-[19px] pt-[19px] pb-[38px] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.08)]">
+              {/* 내부 패널(layout2) — radius 45.39→15, pad 56.74/113.47→19/38(하단 2배), 흰→#E1E1E1 그라데.
+                  높이 고정 153 = pt19 + 본문 96 + pb38. 단계마다 본문(모드 카드/입력/목록/그리드)이
+                  달라도 패널 외곽이 리사이즈되지 않게 **모든 단계 동일 높이** + 세로 가운데 정렬.
+                  (96 = 전 단계 수용 최소치: 검색 입력 68 + gap8 + 안내문구 20. 모드 카드 75도 수용.
+                   목록/그리드는 같은 96 캡으로 내부 스크롤 — PillSelectList·GroupNumberGrid max-h와 일치) */}
+              <div className="flex h-[153px] w-full flex-col items-center justify-center gap-[5px] overflow-hidden rounded-[15px] bg-gradient-to-b from-[#ffffff] to-[#e1e1e1] px-[19px] pt-[19px] pb-[38px] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.08)]">
                 {children}
               </div>
             </div>
 
-            {/* 걸침 CTA: 패널 하단 중앙에 음수 마진으로 반쯤 걸침(in-flow → 축소 측정 정확) */}
-            {footer && <div className="relative z-10 -mt-[26px]">{footer}</div>}
+            {/* 걸침 CTA: 패널 하단 중앙에 음수 마진으로 반쯤 걸침(in-flow → 축소 측정 정확).
+                footer가 없는 단계(BM-101)에서도 슬롯(h-52)을 항상 렌더 — 측정 박스 높이를
+                단계 간 동일하게 유지해 FitToViewport 배율/패널 위치가 전환 시 변하지 않게 한다. */}
+            <div className="relative z-10 -mt-[26px] h-[52px]">{footer}</div>
           </div>
         </div>
         </div>

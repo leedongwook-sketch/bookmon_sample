@@ -109,7 +109,7 @@ export function useOnboardingFlow() {
       groupId: selectedGroup.id,
       mode: mode ?? "real",
     });
-    router.push("/map");
+    router.push("/map3d"); // 3D 지도가 기본 진입(2D는 /map, 지도 내 버튼으로 이동)
   };
 
   // ── 단계 판별 ────────────────────────────────

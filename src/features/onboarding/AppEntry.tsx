@@ -37,7 +37,7 @@ export function AppEntry() {
     if (saved !== null && !isValidGameState(saved)) {
       clearSavedGameState(); // 구조 손상 → 정리
     } else if (isPlayableGameState(saved)) {
-      router.replace("/map"); // 정상 게임데이터 → 지도로
+      router.replace("/map3d"); // 정상 게임데이터 → 지도(3D 기본)로
       return; // 스플래시 유지한 채 이동
     }
 

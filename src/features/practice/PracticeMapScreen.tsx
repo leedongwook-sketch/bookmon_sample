@@ -1,49 +1,55 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useGameStore } from "@/store/gameStore";
-import { useEncounterFlow } from "@/features/map/useEncounterFlow";
-import { MapMenu } from "@/features/map/MapMenu";
+import { MapView } from "@/features/map/MapScreen";
 import { MAP_GOLD_BUTTON } from "@/features/map/mapButtonStyle";
 import { usePracticePosition } from "./usePracticePosition";
-import { generateMonsterNear } from "./practiceData";
-import type { GameLocation } from "@/types";
+import { generateMonsterNear, refreshMonsterVisuals } from "./practiceData";
+import type { EventMap, GameLocation } from "@/types";
 
-// 실행모드 지도 화면 — 현재 위치 기준 OSM 실지도(Leaflet).
-//   · 내 위치 마커: 실시간 GPS(watchPosition)로 이동. 카메라가 나를 따라간다.
-//   · 몬스터: 내 위치 주변(15~35m)에 랜덤 1마리 생성 → 10m 근접 시 조우(행사모드와 동일 훅).
-//     처리(성공/실패, 도감 기록)되면 다음 몬스터를 다시 주변에 생성.
-//   ⚠ Leaflet 은 window 필요 → 이 컴포넌트는 /play 페이지에서 dynamic(ssr:false)로 로드된다.
+// 실행모드 지도 화면 — 최초 GPS 픽스 기준 고정 이미지 지도(용인초 일러스트, OSM 대체).
+//   · 행사모드 2D와 동일한 이미지 지도(MapView 공용, variant="practice")로 렌더한다.
+//   · 앵커 합성: 최초 픽스를 이미지 중심에 두고, 이미지가 실측 약 150m(가로)×160m(세로)를
+//     덮는다고 가정해 NW/SE 위경도를 계산 → projectToImage 매핑이 그대로 성립한다.
+//     (앵커는 최초 픽스에 1회 고정 — 이후 이동해도 지도는 고정, 내 마커만 움직인다.)
+//   · 내 위치 마커+파란 레이더, 12~20m 랜덤 몬스터 생성, 카메라 팔로우, 책 마커 클릭/10m
+//     근접 조우(행사모드와 동일 훅), 포획 후 재생성 등 기존 기능은 모두 동일.
+//   · 이미지 밖으로 나가면 경고 없이 마커/카메라가 가장자리에 클램프된다(MapView 처리).
 
-// 내 위치 마커 — 파란 레이더 번짐(animate-ping) + 화살표 이미지(행사모드 2D와 동일 감).
-//   Leaflet divIcon 으로 HTML 구성. 클래스는 소스 리터럴이라 Tailwind JIT 가 감지.
-//   /images 경로는 배포 시 gh-pages-rewrite 가 basePath 접두.
-const ME_DIV_ICON = L.divIcon({
-  className: "",
-  html: `<div class="relative h-12 w-12">
-    <span class="absolute left-1/2 top-1/2 h-9 w-9 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-skyblue/40"></span>
-    <img src="/images/mk_player.png" alt="" class="relative block" style="width:48px;height:48px" draggable="false" />
-  </div>`,
-  iconSize: [48, 48],
-  iconAnchor: [24, 24],
-});
-const MONSTER_ICON = L.icon({
-  iconUrl: "/images/mk_monster.svg",
-  iconSize: [56, 60],
-  iconAnchor: [28, 54],
-});
+// 체험모드 지도 이미지 — 용인초등학교 일러스트(900×960). /images 경로는 배포 시
+// gh-pages-rewrite 가 basePath 접두.
+const PRACTICE_MAP_URL = "/images/practice-map.svg";
 
-// 카메라 팔로우 — 내 위치가 바뀔 때마다 지도 중심을 부드럽게 이동(마커 전환 0.5s와 동기).
-function FollowMe({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.panTo([lat, lng], { animate: true, duration: 0.5, easeLinearity: 0.5 });
-  }, [map, lat, lng]);
-  return null;
+// 이미지가 덮는 실제 영역 가정(m) — 이미지 종횡비(900:960)에 맞춘 150×160m.
+// 몬스터 최대 거리 20m·도착 반경 10m 대비 충분히 넓어 마커가 화면 안에 여유 있게 찍힌다.
+const SPAN_X_M = 150;
+const SPAN_Y_M = 160;
+
+// 최초 픽스(center)를 이미지 중심으로 두는 합성 EventMap.
+//   위도 1도 ≈ 111,320m, 경도는 cos(위도) 보정 — 행사모드 앵커(NW=0,0 / SE=1,1)와 동일 구조.
+function synthesizeEventMap(center: GameLocation): EventMap {
+  const halfLat = SPAN_Y_M / 2 / 111_320;
+  const halfLng =
+    SPAN_X_M / 2 / (111_320 * Math.cos((center.latitude * Math.PI) / 180));
+  return {
+    imageUrl: PRACTICE_MAP_URL,
+    anchors: [
+      {
+        x: 0,
+        y: 0,
+        latitude: center.latitude + halfLat, // NW(좌상) = 북서
+        longitude: center.longitude - halfLng,
+      },
+      {
+        x: 1,
+        y: 1,
+        latitude: center.latitude - halfLat, // SE(우하) = 남동
+        longitude: center.longitude + halfLng,
+      },
+    ],
+  };
 }
 
 export function PracticeMapScreen() {
@@ -52,6 +58,19 @@ export function PracticeMapScreen() {
   const collection = useGameStore((s) => s.collection);
   const setGames = useGameStore((s) => s.setGames);
   const seqRef = useRef(0);
+
+  // 합성 지도 원점 = 최초 GPS 픽스(1회 고정).
+  const [origin, setOrigin] = useState<GameLocation | null>(null);
+  useEffect(() => {
+    if (!position || origin) return;
+    // 최초 픽스 도착(외부 이벤트) → 원점 1회 고정(이후 불변이라 캐스케이드 없음).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOrigin(position);
+  }, [position, origin]);
+  const eventMap = useMemo(
+    () => (origin ? synthesizeEventMap(origin) : null),
+    [origin]
+  );
 
   // 활성 몬스터 = 아직 도감에 기록되지 않은 것(1마리씩).
   const active =
@@ -69,13 +88,17 @@ export function PracticeMapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, hasFix]);
 
-  // 조우 흐름(행사모드와 동일 훅) — 10m 근접 → AR → 퀴즈 → 도감.
-  //   추가: 책 마커를 클릭해도 조우 시작(테스트/수동 트리거).
-  const myPos: GameLocation = position ?? { latitude: 0, longitude: 0 };
-  const { beginEncounter, layers } = useEncounterFlow({
-    games: active ? [active] : [],
-    myPos,
-  });
+  // 영속 몬스터 마이그레이션 — 이미지 교체 이전 빌드에서 생성돼 localStorage 에 남은
+  // 활성 몬스터의 비주얼(썸네일·스프라이트)을 현재 테스트 리소스로 갱신한다.
+  // (안 하면 조우 시 req.sprites 가 옛 경로/"" 로 나가 AR 스프라이트가 미적용된다)
+  useEffect(() => {
+    if (!active) return;
+    const fresh = refreshMonsterVisuals(active);
+    if (fresh === active) return;
+    setGames(
+      useGameStore.getState().games.map((g) => (g.id === fresh.id ? fresh : g))
+    );
+  }, [active, setGames]);
 
   // 첫 GPS 픽스 전/에러 안내.
   if (error) {
@@ -86,7 +109,7 @@ export function PracticeMapScreen() {
       </Centered>
     );
   }
-  if (!position) {
+  if (!position || !eventMap) {
     return (
       <Centered>
         <p className="text-base font-bold text-navy">현재 위치를 확인하는 중…</p>
@@ -95,47 +118,9 @@ export function PracticeMapScreen() {
     );
   }
 
-  return (
-    <div className="relative h-[100dvh] w-full overflow-hidden">
-      <MapContainer
-        center={[position.latitude, position.longitude]}
-        zoom={19}
-        zoomControl={false}
-        attributionControl={false}
-        // isolate: Leaflet 내부 pane(z 200~700)을 독립 스택으로 가둬 상단 메뉴(MapMenu)가 지도에 안 가리게.
-        // smooth-markers: 마커 이동을 CSS 전환으로 부드럽게(globals.css).
-        // map-pastel: 타일에 파스텔+세피아 필터를 얹어 북몬 아이보리 톤으로(globals.css).
-        className="smooth-markers map-pastel isolate h-full w-full"
-      >
-        {/* CyclOSM — 무료·API키 불필요·한국 고줌 실타일 지원. OSM 표준보다 파스텔톤이라 예쁨.
-            + .map-pastel CSS 필터로 채도↓·살짝 세피아 → 북몬 아이보리 톤과 조화, 마커 가독성↑.
-            ※ CARTO·Stadia·VWorld 등 더 미니멀한 스타일은 API 키/계정이 필요해 제외. {s}=a~c. */}
-        <TileLayer
-          url="https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png"
-          subdomains="abc"
-          maxZoom={20}
-        />
-        <FollowMe lat={position.latitude} lng={position.longitude} />
-        <Marker
-          position={[position.latitude, position.longitude]}
-          icon={ME_DIV_ICON}
-        />
-        {active && (
-          <Marker
-            position={[active.location.latitude, active.location.longitude]}
-            icon={MONSTER_ICON}
-            eventHandlers={{ click: () => beginEncounter(active) }}
-          />
-        )}
-      </MapContainer>
-
-      {/* 좌상단 메뉴(도감/초기화) — 행사모드와 공용. */}
-      <MapMenu />
-
-      {/* 조우 오버레이(흰 전환/기기안내/퀴즈/도감) — 지도 위 fixed. */}
-      {layers}
-    </div>
-  );
+  // 공용 이미지 지도(MapView) — 카메라 팔로우/드래그/마커/메뉴/조우 오버레이 모두 포함.
+  //   변형점(variant="practice"): 책 마커 탭 조우 + 내 위치 클램프, 3D/경고/미니맵 없음.
+  return <MapView eventMap={eventMap} games={games} myPos={position} variant="practice" />;
 }
 
 // 중앙 안내 컨테이너.

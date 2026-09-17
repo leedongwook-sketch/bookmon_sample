@@ -77,6 +77,51 @@
     26% { opacity: 0.72; }       /* settle */
     100% { opacity: 1; }         /* dark vignette holds */
   }
+  /* SUCCESS photos — shown over the white fill, one every second, positioned AT
+     the monster's last on-screen spot and sized to match it (JS sets left/top/
+     width). Falls back to centered when no rect is available. */
+  #success-photos {
+    position: fixed; inset: 0; z-index: 51; display: none;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  #success-photos.show { display: flex; }
+  #success-photo-img {
+    max-width: min(84vw, 420px); max-height: 64vh; width: auto; height: auto;
+    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.25));
+  }
+  /* Anchored mode: absolute at the monster's projected rect. */
+  #success-photos.at #success-photo-img {
+    position: absolute; transform: translate(-50%, -50%);
+    max-width: none; max-height: none; height: auto;
+  }
+  #success-photo-img.pop { animation: succ-pop 0.4s ease-out; }
+  @keyframes succ-pop {
+    0% { transform: scale(0.7) rotate(-4deg); opacity: 0; filter: brightness(2.2); }
+    45% { transform: scale(1.1) rotate(2deg); opacity: 1; filter: brightness(1.25); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+  }
+  /* Anchored pop keeps the centering translate through the animation. */
+  #success-photos.at #success-photo-img.pop { animation: succ-pop-at 0.4s ease-out; }
+  @keyframes succ-pop-at {
+    0% { transform: translate(-50%, -50%) scale(0.7) rotate(-4deg); opacity: 0; filter: brightness(2.2); }
+    45% { transform: translate(-50%, -50%) scale(1.1) rotate(2deg); opacity: 1; filter: brightness(1.25); }
+    100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+  }
+  /* When the white fill starts, the still fades OUT so only white remains. */
+  #success-photo-img { transition: opacity 1.5s ease; }
+  #success-photos.out #success-photo-img { opacity: 0; }
+  /* Gold ring that pings outward on every still swap. */
+  #succ-ring {
+    position: absolute; left: 50%; top: 50%; width: 30vh; height: 30vh;
+    border: 3px solid rgba(255, 216, 74, 0.95); border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0.5); opacity: 0; pointer-events: none;
+    box-shadow: 0 0 14px rgba(255, 216, 74, 0.75), inset 0 0 10px rgba(255, 216, 74, 0.5);
+  }
+  #succ-ring.ping { animation: succ-ring-ping 0.7s ease-out; }
+  @keyframes succ-ring-ping {
+    0% { transform: translate(-50%, -50%) scale(0.45); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.9); opacity: 0; }
+  }
 
   /* Camera shake: applied to the AR canvas. The slight scale hides the edges
      that the translation would otherwise reveal. */
@@ -214,65 +259,93 @@
     background: #38ff9e; border-color: #38ff9e; box-shadow: 0 0 8px rgba(56, 255, 158, 0.9);
   }
 
-  /* Capture bottom bar: a full-width TIME gauge (left) + the camera button
-     (bottom-right, as before). The gauge has a camera ICON at its center with the
-     remaining seconds just to its right. */
+  /* Capture bottom bar (per the mock): a SLIM gauge, ~60% of the screen wide,
+     dead-centered horizontally; the camera button floats at the bottom-right. */
   #cap-bar {
     position: fixed; left: 0; right: 0; bottom: 0; display: none;
-    align-items: center; gap: 12px;
-    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    align-items: center; justify-content: center;
+    padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box; pointer-events: none;
   }
-  /* Time gauge (styled after gage.png): brown pill frame, glossy bright-green
-     track, and a DARK-GREEN fill that fills the whole bar and shrinks as the clock
-     runs down. No indicator, no catch zone. */
+  /* Slim gauge — centered; the width caps keep it clear of the camera button. */
   #cap-gauge {
-    position: relative; flex: 1 1 auto; min-width: 0; height: 34px;
+    position: relative; flex: 0 0 auto; height: 16px;
+    width: min(66vw, 100vw - 184px, 560px);
   }
-  /* All three gauge layers share border-radius:999px so their corners are
-     unified into one pill. The track clips the fill; the frame is a separate
-     top overlay (so a full fill never hides it). No `border` anywhere — a real
-     border + radius + overflow leaves square-ish corners in WebKit. */
+  /* All gauge layers share border-radius:999px so their corners are unified
+     into one pill. The track clips the zone; the frame is a separate top
+     overlay (so the zone never hides it). No `border` anywhere — a real
+     border + radius + overflow leaves square-ish corners in WebKit.
+     Colours sampled from the reference artwork (Frame 175.png). */
   #cap-track {
     position: absolute; inset: 0; border-radius: 999px; overflow: hidden;
-    background: linear-gradient(180deg, #c8f858 0%, #7cc22c 46%, #418701 100%);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    /* Glossy green cylinder — exact design gradient (from the design source). */
+    background: linear-gradient(180deg,
+      #6EB62D 14.29%, #D6FF5B 27.47%, #BAF154 45.6%, #68AC28 60.03%, #418700 77.34%);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.45);
   }
-  /* Remaining-time fill — dark green, fills the full bar, shrinks toward center.
-     Its own pill radius keeps BOTH ends rounded at every width; the track's
-     rounded overflow clips it at full width. NOTE: no CSS transform — JS sets
-     `left`+`width` to center it (a `translateX` child breaks the rounded clip). */
-  #cap-time {
-    position: absolute; top: 4px; bottom: 4px; left: 0; width: 100%;
-    border-radius: 999px;
-    background: linear-gradient(180deg, #0d5a2c 0%, #00301a 100%);
-    box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.45);
+  /* CAPTURE ZONE — the centered dark-green band. The sweeping arrow must be
+     inside it when the shutter is pressed; it SHRINKS after every catch so the
+     difficulty ramps up. Its own pill radius keeps both ends rounded at every
+     width. NOTE: no CSS transform — JS sets `left`+`width` to center it (a
+     `translateX` child breaks the parent's rounded clip in WebKit). */
+  #cap-zone {
+    position: absolute; top: 0; bottom: 0; left: 33%; width: 34%;
+    /* Dark-green OVERLAY on the glossy track. Vertical alpha profile measured
+       from the artwork (highlight glints through at the top, solid dark from
+       ~2/3 down). Left/right edges are HARD, exactly as in the artwork. */
+    background: linear-gradient(180deg,
+      rgba(0, 58, 27, 0) 0%, rgba(0, 58, 27, 0.19) 24%,
+      rgba(0, 58, 27, 0.42) 42%, rgba(0, 58, 27, 0.68) 55%,
+      rgba(0, 58, 27, 1) 67%, rgba(0, 58, 27, 1) 100%);
+    transition: left 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
   }
-  /* Wood-brown frame ring + top gloss — drawn on TOP so the fill never covers it. */
+  /* Shrink emphasis — quick brighten so each difficulty step reads clearly. */
+  #cap-zone.shrink { animation: zone-shrink 0.6s ease-out; }
+  @keyframes zone-shrink {
+    0% { filter: brightness(2); }
+    100% { filter: brightness(1); }
+  }
+  /* Wood-brown frame ring — drawn on TOP so the zone never covers it. Slim ring
+     to match the slim bar; lighter top rim, darker bottom (per the artwork). */
   #cap-frame {
     position: absolute; inset: 0; border-radius: 999px; pointer-events: none; z-index: 2;
-    box-shadow: inset 0 0 0 4px #6e4a20,
-                inset 0 3px 3px rgba(255, 255, 255, 0.35),
-                inset 0 -3px 5px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 0 2.5px #73411a,
+                inset 0 3px 0 -1px rgba(150, 88, 34, 0.55),
+                inset 0 -3px 0 -1px rgba(90, 50, 18, 0.6),
+                0 0 0 1px rgba(60, 32, 10, 0.45);
   }
-  /* Low-time warning tint. */
-  #cap-time.low { background: linear-gradient(180deg, #7a1f1f 0%, #3a0d0d 100%); }
-  /* Camera icon at the gauge center (marks the shutter zone). */
-  #cap-cam-icon {
+  /* Sweeping indicator arrow (indi.png) above the gauge, pointing down at it. */
+  #cap-indi {
+    position: absolute; bottom: 100%; left: 4%; width: 20px; height: auto;
+    transform: translate(-50%, -3px); will-change: left; z-index: 5;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+  }
+  #cap-indi.miss { animation: indi-miss 0.3s ease-out; }
+  @keyframes indi-miss { 0%,100% { filter: none; } 50% { filter: drop-shadow(0 0 6px #ff5a5a); } }
+  /* Center readout (per the mock): a small yellow camera glyph + "30초" inline,
+     dead-center ON the bar, yellow #EDD927 with a dark shadow for contrast. */
+  #cap-center {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 24px; height: 24px; z-index: 3; pointer-events: none;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    display: flex; align-items: center; gap: 3px; z-index: 3; pointer-events: none;
+    color: #f2dc32; font-weight: 800; font-size: 11px; line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Tight, dark shadow hugging the glyphs (no soft spread). */
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.85);
+    white-space: nowrap;
+  }
+  #cap-cam-icon {
+    width: 10px; height: 10px; flex: 0 0 auto;
+    filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
   }
   #cap-cam-icon svg { width: 100%; height: 100%; display: block; }
-  /* Seconds readout — just right of the center camera icon. */
-  #cap-secs {
-    position: absolute; left: calc(50% + 22px); top: 50%; transform: translateY(-50%);
-    color: #fff; font-weight: 900; font-size: 19px; line-height: 1; z-index: 3;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); pointer-events: none; white-space: nowrap;
-  }
-  /* Camera button — bottom-right, as before. */
+  /* Camera button — pinned to the bar's right edge (absolute, so it doesn't
+     push the gauge off the screen's horizontal centre). */
   #cap-camera {
-    position: relative; flex: 0 0 auto;
+    position: absolute; right: 16px;
+    top: 22px;                     /* bar top padding 14px + gauge half 8px */
+    transform: translateY(-50%);   /* → centered on the gauge row */
     pointer-events: auto; border: none; background: none; padding: 0;
     width: 62px; height: 62px; outline: none; -webkit-appearance: none; appearance: none;
     -webkit-tap-highlight-color: transparent;
@@ -320,7 +393,7 @@
     -webkit-tap-highlight-color: transparent !important;
   }
   .prompt-button-8w:not(:last-child) { margin-right: 0 !important; }
-  .prompt-button-8w.button-primary-8w { background-color: #16213a !important; color: #ffffff !important; }</style><div id="boot-overlay"><span class="loading">loading...</span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="assets/cap_white.png" alt=""></div><img id="discover-fx" src="assets/ar_effect1.png" alt=""><div id="countdown"><img id="countdown-img" src="assets/start_3.png" alt=""></div><img id="start-banner" src="assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-time"></div></div><div id="cap-frame"></div><span id="cap-cam-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#ffcc00"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a1200"></circle></svg> </span><span id="cap-secs">10</span></div><button id="cap-camera" type="button" aria-label="capture"><img src="assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
+  .prompt-button-8w.button-primary-8w { background-color: #16213a !important; color: #ffffff !important; }</style><div id="boot-overlay"><span class="loading">loading...</span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="success-photos" aria-hidden="true"><span id="succ-ring"></span> <img id="success-photo-img" src="assets/success/P_succ1.png" alt=""></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="assets/cap_white.png" alt=""></div><img id="discover-fx" src="assets/ar_effect1.png" alt=""><div id="countdown"><img id="countdown-img" src="assets/start_3.png" alt=""></div><img id="start-banner" src="assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-zone"></div></div><div id="cap-frame"></div><img id="cap-indi" src="assets/indi.png" alt=""> <span id="cap-center" aria-hidden="true"><span id="cap-cam-icon"><svg viewBox="0 0 24 24" fill="#f2dc32"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a3a12"></circle></svg> </span><span class="t"><span id="cap-secs">30</span>초</span></span></div><button id="cap-camera" type="button" aria-label="capture"><img src="assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
   // World-tracking AR needs the gyroscope/accelerometer. On iOS 13+ that
   // permission can only be requested from inside a user gesture, so the engine
   // otherwise shows its own "AR requires access to device motion sensors" prompt
@@ -381,6 +454,35 @@
     document.addEventListener('pointerdown', request, true)
     document.addEventListener('touchend', request, true)
     document.addEventListener('click', request, true)
+  })()
+
+  // === keep fullscreen across page navigation (Android) ====================
+  // The host app enters the Fullscreen API on its start gate, but the top-level
+  // navigation to this AR page DROPS fullscreen (it's document-bound). Re-enter
+  // on the first user gesture here (8th Wall's start tap provides the required
+  // activation). iOS Safari has no Fullscreen API → silent no-op (PWA covers it).
+  // To REVERT: delete this IIFE.
+  ;(function () {
+    var el = document.documentElement
+    var req = el.requestFullscreen || el.webkitRequestFullscreen
+    if (!req) return
+    var fsDone = false
+    function goFs() {
+      if (fsDone) return
+      fsDone = true
+      document.removeEventListener('pointerdown', goFs, true)
+      document.removeEventListener('touchend', goFs, true)
+      document.removeEventListener('click', goFs, true)
+      try {
+        if (!document.fullscreenElement) {
+          var r = req.call(el)
+          if (r && r.catch) r.catch(function () {})
+        }
+      } catch (e) { /* unsupported/denied → ignore */ }
+    }
+    document.addEventListener('pointerdown', goFs, true)
+    document.addEventListener('touchend', goFs, true)
+    document.addEventListener('click', goFs, true)
   })()
 
   // === customize 8th Wall prompt ==========================================
@@ -444,16 +546,19 @@
 
       var existing = null
       try { existing = JSON.parse(sessionStorage.getItem('bookmon-ar-req') || 'null') } catch (e) {}
-      // Skip only when a req already carries sprite sheets (real host or fresh seed).
-      var hasSprites = existing && existing.sprites && (existing.sprites.idle ||
-        existing.sprites.left || existing.sprites.right || existing.sprites.hit)
-      if (hasSprites) return
+      // Skip only when a req already carries sprite sheets (real host or fresh
+      // seed) — but NOT when they point at the removed 01_* test files (stale
+      // dev session from before the P_* rename): those must be re-seeded.
+      var sp0 = existing && existing.sprites
+      var hasSprites = sp0 && (sp0.idle || sp0.left || sp0.right || sp0.hit)
+      var stale01 = hasSprites && /assets\/sprites\/01_/.test(String(sp0.idle || sp0.left || ''))
+      if (hasSprites && !stale01) return
 
       var seed = existing || {mid: 'dev', nonce: 'dev', ts: Date.now(), image: '', captures: 3, return: ''}
       seed.sprites = {
-        idle: 'assets/sprites/01_idle.png',
-        left: 'assets/sprites/01_run_L.png',
-        right: 'assets/sprites/01_run_R.png',
+        idle: 'assets/sprites/P_idle.png',
+        left: 'assets/sprites/P_run_L.png',
+        right: 'assets/sprites/P_run_R.png',
         hit: '',
       }
       sessionStorage.setItem('bookmon-ar-req', JSON.stringify(seed))
@@ -590,10 +695,12 @@
   //   __bookmonUI.fireDiscovery()        // ar_effect1/2 alternating burst
   //   __bookmonUI.showCount(text) / hideCount()  // 3·2·1 countdown
   //   __bookmonUI.playStartBanner()      // start banner (start.png "Go")
+  //   __bookmonUI.setZone(frac)          // capture-zone width (shrinks per catch)
   //   __bookmonUI.setCaptureProgress(done,needed)  // progress dots
   //   __bookmonUI.cameraShutter()        // "찰칵" flash on a successful catch
-  //   __bookmonUI.startCapture({seconds, onCapture, onTimeout})  // time countdown;
-  //     onCapture fires on each valid photo (aimed) — repeatable; onTimeout at 0
+  //   __bookmonUI.startCapture({seconds, zone, onCapture, onTimeout})
+  //     arrow sweeps the gauge; onCapture fires when pressed with the arrow in
+  //     the zone AND the monster aimed — repeatable; onTimeout when time runs out
   //   __bookmonUI.stopCapture()
   window.__bookmonUI = (function () {
     var ui = document.getElementById('game-ui')
@@ -601,7 +708,8 @@
     var xhCap = document.getElementById('xh-cap')
     var capCenter = document.getElementById('xh-cap-center')
     var secsEl = document.getElementById('cap-secs')
-    var timeFill = document.getElementById('cap-time')
+    var zoneEl = document.getElementById('cap-zone')
+    var indiEl = document.getElementById('cap-indi')
     var camBtn = document.getElementById('cap-camera')
     var camImg = camBtn ? camBtn.querySelector('img') : null
     var discoverFx = document.getElementById('discover-fx')
@@ -674,16 +782,20 @@
       startBanner.classList.add('play')
     }
 
-    // ---- Time fill + progress + shutter ---------------------------------
-    // Size the dark-green remaining-time fill (frac 0..1), centered. Below 25%
-    // it tints red as a warning.
-    function setTimeFill(frac) {
-      if (!timeFill) return
-      var f = frac < 0 ? 0 : (frac > 1 ? 1 : frac)
-      // Center the band by setting left + width (no CSS transform — see #cap-time).
-      timeFill.style.width = (f * 100) + '%'
-      timeFill.style.left = ((1 - f) * 50) + '%'
-      if (f <= 0.25) timeFill.classList.add('low'); else timeFill.classList.remove('low')
+    // ---- Capture zone + progress + shutter ------------------------------
+    // Size the dark-green CAPTURE ZONE (frac of the bar width, 0..1), centered.
+    // Called with a smaller frac after every catch — the shrink animates via the
+    // CSS transition and pulses bright so the difficulty step reads clearly.
+    var zoneFrac = 0.34
+    function setZone(frac) {
+      var f = frac < 0.02 ? 0.02 : (frac > 1 ? 1 : frac)
+      zoneFrac = f
+      if (!zoneEl) return
+      zoneEl.style.width = (f * 100) + '%'
+      zoneEl.style.left = ((1 - f) * 50) + '%'
+      zoneEl.classList.remove('shrink')
+      void zoneEl.offsetWidth
+      zoneEl.classList.add('shrink')
     }
     function setCaptureProgress(done, needed) {
       if (!progress) return
@@ -743,14 +855,80 @@
     }
 
     // End-of-game screen effect (replaces the success/fail text overlays):
-    //   'success' → the screen gradually fills with white
+    //   'success' → the screen gradually fills with white, then the success
+    //               photos (P_succ1..3) are shown one per second on top
     //   'fail'    → a red flash that dims to a dark vignette
-    function showResult(type) {
+    var SUCC_PHOTOS = ['assets/success/P_succ1.png', 'assets/success/P_succ2.png', 'assets/success/P_succ3.png']
+    SUCC_PHOTOS.forEach(function (s) { var im = new Image(); im.src = s })   // preload
+    var succTimer = null
+    // Success sequence: the three stills play FIRST (1s each, with a gold ring
+    // ping + punchy pop), and only THEN the white fill fades in — the last still
+    // fades OUT with it so only the white background remains.
+    // rect (optional): the monster's projected screen rect {xPct,yPct,wPct,hPct}
+    // — the stills play AT that spot at the monster's on-screen size.
+    function showResult(type, rect) {
       var el = document.getElementById('result-fx')
       if (!el) return
       el.classList.remove('win', 'lose')
       void el.offsetWidth
-      el.classList.add(type === 'success' ? 'win' : 'lose')
+      if (type !== 'success') { el.classList.add('lose'); return }
+      var wrap = document.getElementById('success-photos')
+      var img = document.getElementById('success-photo-img')
+      var ring = document.getElementById('succ-ring')
+      if (!wrap || !img) return
+      wrap.classList.remove('out')
+      if (succTimer) { clearInterval(succTimer); succTimer = null }
+      // Anchor at the monster's spot & size when a rect is available. The visible
+      // sprite is contain-fit BY HEIGHT inside the plane (the plane's width holds
+      // letterbox padding), so the still is sized from the projected HEIGHT —
+      // that matches the monster the player actually saw.
+      var L = '50%'
+      var T = '50%'
+      var hvh = 34
+      if (rect && rect.hPct > 0) {
+        wrap.classList.add('at')
+        L = Math.min(92, Math.max(8, rect.xPct)) + '%'
+        T = Math.min(88, Math.max(12, rect.yPct)) + '%'
+        hvh = Math.min(70, Math.max(14, rect.hPct))
+        img.style.left = L
+        img.style.top = T
+        img.style.height = hvh + 'vh'
+        img.style.width = 'auto'
+      } else {
+        wrap.classList.remove('at')
+        img.style.left = ''
+        img.style.top = ''
+        img.style.height = ''
+        img.style.width = ''
+      }
+      // The ring shares the still's anchor and scales with it.
+      if (ring) {
+        ring.style.left = L
+        ring.style.top = T
+        ring.style.width = (hvh * 1.15) + 'vh'
+        ring.style.height = (hvh * 1.15) + 'vh'
+      }
+
+      var i = 0
+      var showPhoto = function () {
+        img.src = SUCC_PHOTOS[i]
+        img.classList.remove('pop'); void img.offsetWidth; img.classList.add('pop')
+        if (ring) { ring.classList.remove('ping'); void ring.offsetWidth; ring.classList.add('ping') }
+        i++
+      }
+      wrap.classList.add('show')
+      showPhoto()   // still 1 now, 2 at 1s, 3 at 2s
+      succTimer = setInterval(function () {
+        if (i < SUCC_PHOTOS.length) {
+          showPhoto()
+        } else {
+          // All stills shown → the white fill fades IN while the last still
+          // fades OUT, leaving only the white background.
+          clearInterval(succTimer); succTimer = null
+          el.classList.add('win')
+          wrap.classList.add('out')
+        }
+      }, 1000)
     }
 
     // Capture session = a single TIME countdown. The dark-green fill and the
@@ -759,20 +937,45 @@
     function startCapture(opts) {
       stopCapture()
       opts = opts || {}
+      setZone((opts.zone != null) ? opts.zone : zoneFrac)
       var seconds = opts.seconds || 10
       var t0 = now(), endAt = t0 + seconds * 1000
       if (secsEl) secsEl.textContent = seconds
-      setTimeFill(1)
-      cap = {done: false, endAt: endAt, total: seconds * 1000, onCapture: opts.onCapture, onTimeout: opts.onTimeout}
+      // Random per-sweep duration (ms for one end-to-end pass); re-rolled at each
+      // turnaround so the arrow's speed varies — sometimes fast, sometimes slow.
+      var minSweep = (opts.minSweepMs != null) ? opts.minSweepMs : 900
+      var maxSweep = (opts.maxSweepMs != null) ? opts.maxSweepMs : 3000
+      var randSweep = function () { return minSweep + Math.random() * (maxSweep - minSweep) }
+      cap = {
+        done: false, endAt: endAt,
+        frac: 0.04, pos: 0, dir: 1, sweepMs: randSweep(), lastT: t0,
+        onCapture: opts.onCapture, onTimeout: opts.onTimeout,
+      }
 
       function tick() {
         if (!cap || cap.done) return
         var t = now()
-        var remainMs = Math.max(0, cap.endAt - t)
-        setTimeFill(remainMs / cap.total)
-        var remain = Math.max(0, Math.ceil(remainMs / 1000))
+        var dt = t - cap.lastT
+        cap.lastT = t
+        // Advance the arrow; reflect at the ends and re-roll the speed there.
+        cap.pos += (dt / cap.sweepMs) * cap.dir
+        var guard = 0
+        while ((cap.pos < 0 || cap.pos > 1) && guard++ < 8) {
+          if (cap.pos > 1) { cap.pos = 2 - cap.pos; cap.dir = -1 } else { cap.pos = -cap.pos; cap.dir = 1 }
+          cap.sweepMs = randSweep()
+        }
+        if (cap.pos < 0) cap.pos = 0
+        if (cap.pos > 1) cap.pos = 1
+        // Ease the reversals (60% smoothstep blend) so turnarounds feel smooth.
+        var s = cap.pos * cap.pos * (3 - 2 * cap.pos)
+        var eased = cap.pos + (s - cap.pos) * 0.6
+        var frac = 0.04 + eased * 0.92             // travel 4%..96%
+        cap.frac = frac
+        if (indiEl) indiEl.style.left = (frac * 100) + '%'
+        // Time limit readout (the bar itself no longer shows time).
+        var remain = Math.max(0, Math.ceil((endAt - t) / 1000))
         if (secsEl) secsEl.textContent = remain
-        if (t >= cap.endAt) {
+        if (t >= endAt) {
           var cb = cap.onTimeout; cap.done = true; cap = null
           if (cb) cb()
           return
@@ -785,17 +988,18 @@
       if (raf) { cancelAnimationFrame(raf); raf = null }
       cap = null
     }
-    // Shutter press: a "photo" counts when the monster is locked on (crosshair
-    // green). It does NOT end the session — the caller counts captures and calls
-    // stopCapture() when enough are taken. A miss (not aimed) just flashes red.
+    // Shutter press: a "photo" counts when the sweeping arrow is INSIDE the dark
+    // green capture zone AND the monster is locked on. It does NOT end the
+    // session — the caller counts captures (shrinking the zone each time) and
+    // calls stopCapture() when enough are taken. A miss just flashes red.
     function tryCapture() {
       if (!cap || cap.done) return
-      if (locked) {
+      var inZone = Math.abs(cap.frac - 0.5) <= zoneFrac / 2
+      if (inZone && locked) {
         if (cap.onCapture) cap.onCapture()
-      } else if (xhCap) {
-        xhCap.classList.remove('miss')
-        void xhCap.offsetWidth
-        xhCap.classList.add('miss')
+      } else {
+        if (indiEl) { indiEl.classList.remove('miss'); void indiEl.offsetWidth; indiEl.classList.add('miss') }
+        if (xhCap) { xhCap.classList.remove('miss'); void xhCap.offsetWidth; xhCap.classList.add('miss') }
       }
     }
 
@@ -813,7 +1017,7 @@
     return {
       setPhase: setPhase, setLock: setLock,
       fireDiscovery: fireDiscovery, showCount: showCount, hideCount: hideCount,
-      playStartBanner: playStartBanner,
+      playStartBanner: playStartBanner, setZone: setZone,
       setCaptureProgress: setCaptureProgress, cameraShutter: cameraShutter, showResult: showResult,
       startCapture: startCapture, stopCapture: stopCapture,
     }

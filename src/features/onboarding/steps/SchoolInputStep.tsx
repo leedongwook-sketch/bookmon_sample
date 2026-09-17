@@ -37,11 +37,12 @@ export function SchoolInputStep({
     onSubmit(e);
   };
 
+  // gap-2: 고정 본문 96px(OnboardingScaffold) 안에 입력 68 + 안내문구 20이 들어가는 간격.
   return (
     <form
       id="school-input-form"
       onSubmit={handleSubmit}
-      className="flex w-full flex-col items-center gap-4"
+      className="flex w-full flex-col items-center gap-2"
     >
       {/* 검색바: 참고 이미지 실측 재현 — 크림 면(#fff3da) + 로열블루 테두리(#366ab4),
           왼쪽에 블루 돋보기 아이콘, placeholder "학교명 검색"(블루). */}

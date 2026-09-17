@@ -176,21 +176,6 @@ button,
   }
 }
 
-/* 체험모드 Leaflet 마커 부드러운 이동 — GPS 갱신이 띄엄띄엄이라 마커 transform 을 전환.
-   줌 애니메이션(.leaflet-zoom-anim) 중엔 전환을 꺼 지도와 어긋나지 않게 한다. */
-.smooth-markers .leaflet-marker-icon {
-  transition: transform 0.5s ease-out;
-}
-.smooth-markers.leaflet-zoom-anim .leaflet-marker-icon {
-  transition: none;
-}
-
-/* 체험모드 지도 파스텔 테마 — 타일(배경 지도)에만 필터를 얹어 북몬 아이보리 톤으로.
-   채도↓·살짝 세피아·명도↑로 부드럽게. 마커/오버레이는 tile-pane 밖이라 영향 없음(가독성 유지). */
-.map-pastel .leaflet-tile-pane {
-  filter: saturate(0.82) sepia(0.12) brightness(1.04) contrast(0.96);
-}
-
 /* 위치 이탈 경고 — 화면 전체 레드 톤이 은은하게 깜빡인다(경고 강조). */
 @keyframes warn-blink {
   0%,

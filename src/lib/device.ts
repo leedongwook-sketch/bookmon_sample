@@ -96,6 +96,60 @@ export function enterFullscreen(): void {
   }
 }
 
+// 전체화면 "유지 의사" 플래그(세션 한정). 사용자가 시작 게이트에서 전체화면에 진입하면 켠다.
+//   페이지 이동(AR 진입/복귀)은 Fullscreen API 상태를 해제하므로, 이 플래그가 있으면
+//   복귀 후 첫 사용자 제스처에 전체화면을 다시 넣는다(armFullscreenRestore).
+const FS_WANTED_KEY = "bookmon-fs-wanted";
+
+export function markFullscreenWanted(): void {
+  try {
+    sessionStorage.setItem(FS_WANTED_KEY, "1");
+  } catch {
+    /* 무시 */
+  }
+}
+
+function isFullscreenWanted(): boolean {
+  try {
+    return sessionStorage.getItem(FS_WANTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 전체화면 복원 무장 — 앱 전역에서 1회 호출.
+ *   AR 페이지에서 앱으로 **복귀**하면 최상위 이동이라 전체화면이 풀린다.
+ *   "유지 의사"가 있고(=시작 게이트에서 진입) 아직 전체화면이 아니면,
+ *   **첫 사용자 제스처**(탭)에 전체화면을 다시 넣는다(재진입엔 제스처가 필수).
+ *   이미 PWA(standalone/fullscreen) 실행이거나 PC면 아무 것도 하지 않는다.
+ *   정리 함수(리스너 해제)를 반환한다.
+ */
+export function armFullscreenRestore(): () => void {
+  if (typeof document === "undefined") return () => {};
+  if (!isFullscreenWanted()) return () => {};
+  if (isStandalone()) return () => {}; // PWA 실행은 이미 몰입 — 불필요
+  if (!isMobileDevice()) return () => {};
+
+  const restore = () => {
+    if (document.fullscreenElement) {
+      cleanup();
+      return;
+    }
+    enterFullscreen();
+    cleanup();
+  };
+  const cleanup = () => {
+    document.removeEventListener("pointerdown", restore, true);
+    document.removeEventListener("touchend", restore, true);
+    document.removeEventListener("click", restore, true);
+  };
+  document.addEventListener("pointerdown", restore, true);
+  document.addEventListener("touchend", restore, true);
+  document.addEventListener("click", restore, true);
+  return cleanup;
+}
+
 /**
  * AR 권한(카메라·모션/방향)을 앱 맨 앞(최상위)에서 **1회** 미리 허용한다.
  *

@@ -4,13 +4,14 @@ import type { Game, GameLocation, Monster, Quiz } from "@/types";
 //   내 현재 위치 주변에 랜덤으로 몬스터 1마리를 생성해 배치한다(행사모드와 달리 고정 배치 아님).
 //   몬스터/퀴즈는 아래 풀에서 무작위로 뽑아 조합한다.
 
-// 체험모드 몬스터 이미지 — sprite_Walk(01) 하나로 고정.
-//   AR(도감/AR 공용)에 이 이미지를 넘겨 로컬·배포 모두 동일 몬스터가 뜨게 한다.
-//   thumbnail256Url = arBridge 가 AR image 로 전달. spriteIdle/Left/Right 도 채워
-//   AR 의 dev-seed(핑크 01) 자동 주입을 무력화(hasSprites=true)한다. (배포 포함 test-sprites 경로)
-const FIX_IMG = "/images/monster/test-sprites/01_idle.png";
-const FIX_SPRITE_L = "/images/monster/test-sprites/01_run_L.png";
-const FIX_SPRITE_R = "/images/monster/test-sprites/01_run_R.png";
+// 체험모드 몬스터 이미지 — 테스트 리소스(P 스프라이트 + bookmon_01 도감) 고정.
+//   ⚠ 테스트 전용(bookmon_design 유래) — 테스트모드 걷어낼 때 test-sprites 폴더째 삭제.
+//   thumbnail128/256 = 도감·AR 대표 이미지(bookmon_01). spriteIdle/Left/Right 는 P 시트 —
+//   채워두면 AR 의 dev-seed(핑크 01) 자동 주입이 무력화(hasSprites=true)된다.
+const FIX_IMG = "/images/monster/test-sprites/bookmon_01.png";
+const FIX_SPRITE_IDLE = "/images/monster/test-sprites/P_idle.png";
+const FIX_SPRITE_L = "/images/monster/test-sprites/P_run_L.png";
+const FIX_SPRITE_R = "/images/monster/test-sprites/P_run_R.png";
 
 // 몬스터 풀 (koreanName/codeName 만 다르게 — 이미지·스프라이트는 동일 고정 리소스).
 const MONSTER_POOL: Omit<Monster, "id">[] = [
@@ -24,11 +25,34 @@ const MONSTER_POOL: Omit<Monster, "id">[] = [
   thumbnail64Url: null,
   thumbnail128Url: FIX_IMG, // 도감 썸네일
   thumbnail256Url: FIX_IMG, // AR 대표 이미지(arBridge → AR)
-  spriteIdleUrl: FIX_IMG,
+  spriteIdleUrl: FIX_SPRITE_IDLE,
   spriteLeftUrl: FIX_SPRITE_L,
   spriteRightUrl: FIX_SPRITE_R,
   spriteHitUrl: null,
 }));
+
+// 영속(localStorage) 몬스터의 비주얼 필드를 현재 테스트 리소스로 갱신한다.
+//   체험모드 games 는 persist 되므로, 이미지 교체 이전 빌드에서 생성된 몬스터가
+//   옛 경로(또는 null)를 물고 남는다 → 조우 시 스프라이트 미적용. 이름/퀴즈/위치는
+//   유지하고 이미지·스프라이트만 최신으로 덮어쓴다. (테스트모드 걷어낼 때 함께 제거)
+export function refreshMonsterVisuals(game: Game): Game {
+  const m = game.monster;
+  if (m.spriteIdleUrl === FIX_SPRITE_IDLE && m.thumbnail128Url === FIX_IMG) {
+    return game; // 이미 최신
+  }
+  return {
+    ...game,
+    monster: {
+      ...m,
+      thumbnail128Url: FIX_IMG,
+      thumbnail256Url: FIX_IMG,
+      spriteIdleUrl: FIX_SPRITE_IDLE,
+      spriteLeftUrl: FIX_SPRITE_L,
+      spriteRightUrl: FIX_SPRITE_R,
+      spriteHitUrl: null,
+    },
+  };
+}
 
 // 체험모드 퀴즈 — 단일 고정 문항.
 const QUIZ_POOL: Omit<Quiz, "id">[] = [

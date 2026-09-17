@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { PortraitGuard } from "@/components/layout/PortraitGuard";
+import { armFullscreenRestore } from "@/lib/device";
 
 /**
  * 앱 전역 프로바이더 묶음.
@@ -12,5 +13,9 @@ import { PortraitGuard } from "@/components/layout/PortraitGuard";
  * 클라이언트 경계이므로 서버 컴포넌트인 layout.tsx에서 이 컴포넌트로 감싼다.
  */
 export function Providers({ children }: { children: ReactNode }) {
+  // AR 페이지에서 복귀하면 최상위 이동으로 전체화면이 풀린다.
+  // "유지 의사"가 있으면 복귀 후 첫 탭에 전체화면을 재진입시킨다(Android).
+  useEffect(() => armFullscreenRestore(), []);
+
   return <PortraitGuard>{children}</PortraitGuard>;
 }

@@ -4,18 +4,20 @@ import type { SchoolService } from "./schoolService";
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ⚠⚠ [테스트 스프라이트 주입 — AR 계약 v2(ArReq.sprites) 검증용] ⚠⚠
-// AR 로 넘길 애니메이션 시트(sprite_Walk) 테스트 경로. 아래 3개 몬스터가 ...TEST_SPRITES("NN") 로 사용.
+// AR 로 넘길 애니메이션 시트 테스트 경로(bookmon_design/sprite 의 P 세트 단일 고정).
 // 걷어내는 법(3단계):
 //   1) 이 상수(TEST_SPRITES) 삭제
-//   2) 각 monster 의 `...TEST_SPRITES("NN"),` → spriteIdle/Left/Right/HitUrl: null 로 복구
+//   2) 각 monster 의 `...TEST_SPRITES(),` → spriteIdle/Left/Right/HitUrl: null 로 복구
 //   3) public/images/monster/test-sprites/ 폴더 삭제
 // 경로 규칙: /images 접두는 gh-pages-rewrite 가 배포 시 basePath 프리픽스(로컬 "" · 배포 "/bookmon_sample").
-const TEST_SPRITES = (n: string) => ({
-  spriteIdleUrl: `/images/monster/test-sprites/${n}_idle.png`,
-  spriteLeftUrl: `/images/monster/test-sprites/${n}_run_L.png`,
-  spriteRightUrl: `/images/monster/test-sprites/${n}_run_R.png`,
+const TEST_SPRITES = () => ({
+  spriteIdleUrl: "/images/monster/test-sprites/P_idle.png",
+  spriteLeftUrl: "/images/monster/test-sprites/P_run_L.png",
+  spriteRightUrl: "/images/monster/test-sprites/P_run_R.png",
   spriteHitUrl: null, // hit 시트 미제공 → "" 전달됨
 });
+// 도감/AR 대표 테스트 이미지(bookmon_design/new/bookmon/bookmon_01, 512px 축소본).
+const TEST_THUMB = "/images/monster/test-sprites/bookmon_01.png";
 
 // ⚠ 테스트 데이터 — 실서버 전환 시 이 파일(*.mock.ts) 삭제.
 // 경기 전역 실제 초등학교(여러 시). 첫 항목 용인초등학교(용인)가 11월 실제 테스트 행사장이며
@@ -62,9 +64,9 @@ const MOCK_GAMES: Game[] = [
       englishName: "Fire Bookmon",
       codeName: "FIRE_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
-      thumbnail256Url: null,
-      ...TEST_SPRITES("01"), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
+      thumbnail128Url: TEST_THUMB, // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail256Url: TEST_THUMB, // ⚠ 테스트 AR 대표 이미지 — 실서버 전환 시 null로
+      ...TEST_SPRITES(), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
     },
     quiz: {
       id: "quiz_1",
@@ -88,9 +90,9 @@ const MOCK_GAMES: Game[] = [
       englishName: "Water Bookmon",
       codeName: "WATER_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
-      thumbnail256Url: null,
-      ...TEST_SPRITES("02"), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
+      thumbnail128Url: TEST_THUMB, // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail256Url: TEST_THUMB, // ⚠ 테스트 AR 대표 이미지 — 실서버 전환 시 null로
+      ...TEST_SPRITES(), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
     },
     quiz: {
       id: "quiz_2",
@@ -114,9 +116,9 @@ const MOCK_GAMES: Game[] = [
       englishName: "Sprout Bookmon",
       codeName: "SPROUT_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일(도감용, 배포 번들 경로) — 실서버 전환 시 null로
-      thumbnail256Url: null,
-      ...TEST_SPRITES("03"), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
+      thumbnail128Url: TEST_THUMB, // ⚠ 테스트 임시 썸네일(도감용) — 실서버 전환 시 null로
+      thumbnail256Url: TEST_THUMB, // ⚠ 테스트 AR 대표 이미지 — 실서버 전환 시 null로
+      ...TEST_SPRITES(), // ⚠ 테스트 스프라이트 — 종료 시 sprite*Url:null 로 복구
     },
     quiz: {
       id: "quiz_3",
@@ -141,9 +143,9 @@ const MOCK_GAMES: Game[] = [
       englishName: "Wind Bookmon",
       codeName: "WIND_BOOKMON",
       thumbnail64Url: null,
-      thumbnail128Url: "/ar/shooting/assets/bookmon1.png", // ⚠ 테스트 임시 썸네일 — 실서버 전환 시 null로
-      thumbnail256Url: null,
-      ...TEST_SPRITES("01"),
+      thumbnail128Url: TEST_THUMB, // ⚠ 테스트 임시 썸네일 — 실서버 전환 시 null로
+      thumbnail256Url: TEST_THUMB, // ⚠ 테스트 AR 대표 이미지 — 실서버 전환 시 null로
+      ...TEST_SPRITES(),
     },
     quiz: {
       id: "quiz_4",

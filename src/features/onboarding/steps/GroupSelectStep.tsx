@@ -26,7 +26,9 @@ export function GroupSelectStep({
   startError,
 }: GroupSelectStepProps) {
   return (
-    <div className="flex flex-col items-center gap-4">
+    // min-h-0/max-h-full: 고정 높이 패널(OnboardingScaffold) 안에서 그리드+Notice 합이 본문을
+    // 넘으면 그리드 스크롤러(min-h-0)만 줄어들도록 flex 축소를 허용한다(Notice는 shrink-0).
+    <div className="flex max-h-full min-h-0 w-full flex-col items-center gap-4">
       {group.status === "loading" && <Notice>불러오는 중…</Notice>}
       {group.status === "error" && (
         <Notice>연결이 불안정합니다. 다시 시도해 주세요.</Notice>

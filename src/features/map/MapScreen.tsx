@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useGameStore } from "@/store/gameStore";
-import { useMyPosition } from "./useMyPosition";
+import { useMyPosition, useCompassHeading } from "./useMyPosition";
 import { MapMenu } from "./MapMenu";
 import { useEncounterFlow } from "./useEncounterFlow";
 import { projectToImage, isWithinEventBounds } from "./geo";
@@ -27,6 +27,7 @@ export function MapScreen() {
   const [mounted, setMounted] = useState(false);
   const eventMap = useGameStore((s) => s.eventMap);
   const games = useGameStore((s) => s.games);
+  const myPos = useMyPosition();
 
   // persist 스토어는 클라이언트 전용 → 마운트 후 읽는다(의도된 패턴)
   useEffect(() => {
@@ -38,10 +39,28 @@ export function MapScreen() {
   if (!eventMap)
     return <MapMessage>지도 정보가 없습니다. 시작 화면에서 다시 진입해 주세요.</MapMessage>;
 
-  return <MapView eventMap={eventMap} games={games} />;
+  return <MapView eventMap={eventMap} games={games} myPos={myPos} />;
 }
 
-function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
+/**
+ * 이미지 지도 뷰 — 행사모드(2D)와 체험모드가 공유한다.
+ *  - myPos 는 소스 무관(행사=useMyPosition, 체험=usePracticePosition 픽스)하게 prop 으로 받는다.
+ *  - variant:
+ *      "event"    = 행사모드 기본. 3D 전환 버튼/이탈 경고/미니맵 표시.
+ *      "practice" = 체험모드. 위 부가 UI 없음 + 책 마커 탭으로 조우 시작(수동 트리거)
+ *                   + 내 위치가 이미지 밖이면 가장자리에 클램프(경고 대신 자연 처리).
+ */
+export function MapView({
+  eventMap,
+  games,
+  myPos,
+  variant = "event",
+}: {
+  eventMap: EventMap;
+  games: Game[];
+  myPos: GameLocation;
+  variant?: "event" | "practice";
+}) {
   // 순차 진행: 아직 시도하지 않은(collection 미기록) 몬스터 중 **첫 1개만** 지도에 표시.
   //   → 마커·미니맵·조우 모두 이 activeGames 를 공유하므로 한 번에 한 마리씩만 노출된다.
   //   (성공/실패 무관하게 collection 에 기록되면 다음 몬스터로 넘어간다.)
@@ -53,7 +72,7 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
     return next ? [next] : [];
   }, [games, collection]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const myPos = useMyPosition();
+  const isPractice = variant === "practice";
 
   // 뷰포트/이미지 자연 크기
   const [viewport, setViewport] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -91,20 +110,22 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
   const mapH = natural ? natural.h * displayScale : 0;
 
   // 내 위치 → 이미지 비율. 카메라 중심 = 자유영역 or 내 위치.
-  const meRatio = project(eventMap, myPos);
+  //   체험모드는 이미지 밖으로 나가도 경고 대신 마커/카메라를 가장자리에 클램프.
+  const meProj = project(eventMap, myPos);
+  const meRatio = isPractice
+    ? { x: clampInset(meProj.x), y: clampInset(meProj.y) }
+    : meProj;
   const center = freeCenter ?? meRatio;
 
-  // 내 위치가 행사장 bbox 밖이면 전체화면 레드 경고.
-  const outOfBounds = !isWithinEventBounds(
-    eventMap.anchors,
-    myPos.latitude,
-    myPos.longitude
-  );
+  // 내 위치가 행사장 bbox 밖이면 전체화면 레드 경고(행사모드 전용).
+  const outOfBounds =
+    !isPractice &&
+    !isWithinEventBounds(eventMap.anchors, myPos.latitude, myPos.longitude);
 
   // ── AR 조우 흐름 (공용 훅) ─────────────────────────────
   // 도착(반경 10m 진입)/테스트 클릭 → '몬스터 발견' 배너 → AR → 퀴즈 → 도감.
   // 상태머신·근접판정·오버레이 레이어는 useEncounterFlow(2D·3D 공용)로 추출됨.
-  const { layers: encounterLayers } = useEncounterFlow({
+  const { beginEncounter, layers: encounterLayers } = useEncounterFlow({
     games: activeGames,
     myPos,
   });
@@ -168,9 +189,14 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
             draggable={false}
           />
 
-          {/* 몬스터 마킹 */}
+          {/* 몬스터 마킹 — 체험모드는 탭으로도 조우 시작(테스트/수동 트리거) */}
           {activeGames.map((game) => (
-            <MonsterMarker key={game.id} game={game} eventMap={eventMap} />
+            <MonsterMarker
+              key={game.id}
+              game={game}
+              eventMap={eventMap}
+              onTap={isPractice ? () => beginEncounter(game) : undefined}
+            />
           ))}
 
           {/* 내 위치 마킹 */}
@@ -181,14 +207,16 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
       {/* 공통 메뉴 — 왼쪽 위 햄버거 (도감 / 초기화) */}
       <MapMenu />
 
-      {/* 우상단: 3D 지도로 이동 (작은 버튼) */}
-      <Link
-        href="/map3d"
-        onPointerDown={(e) => e.stopPropagation()} // 지도 드래그로 번지지 않게
-        className={`absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-extrabold ${MAP_GOLD_BUTTON}`}
-      >
-        3D 지도
-      </Link>
+      {/* 우상단: 3D 지도로 이동 (작은 버튼) — 행사모드 전용(체험모드는 3D 없음) */}
+      {!isPractice && (
+        <Link
+          href="/map3d"
+          onPointerDown={(e) => e.stopPropagation()} // 지도 드래그로 번지지 않게
+          className={`absolute right-[max(0.75rem,var(--spacing-safe-r))] top-[max(0.75rem,var(--spacing-safe-t))] z-10 flex items-center gap-1 rounded-full px-4 py-2.5 text-sm font-extrabold ${MAP_GOLD_BUTTON}`}
+        >
+          3D 지도
+        </Link>
+      )}
 
       {/* 위치 이탈 경고 — 내 위치가 행사장 구역 밖이면 전체화면 레드 깜빡임. */}
       {outOfBounds && <OutOfBoundsWarning />}
@@ -197,8 +225,8 @@ function MapView({ eventMap, games }: { eventMap: EventMap; games: Game[] }) {
           DOM 오버레이라 지도 위에 얹힘. */}
       {encounterLayers}
 
-      {/* 미니맵 — 오른쪽 아래 고정. 지도 이미지 비율 박스에 몬스터/내 위치를 점으로 표시. */}
-      {ready && natural && (
+      {/* 미니맵 — 오른쪽 아래 고정(행사모드 전용). 지도 이미지 비율 박스에 내 위치를 점으로 표시. */}
+      {!isPractice && ready && natural && (
         <MiniMap
           imageUrl={eventMap.imageUrl}
           aspect={`${natural.w} / ${natural.h}`}
@@ -239,7 +267,16 @@ function clampInset(v: number, inset = 0.02): number {
 }
 
 // 몬스터 1마리를 좌표 비율 위치에 마킹 (책 마커 중심 = 좌표).
-function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
+//   onTap(체험모드): 책 마커 탭 → 조우 시작. 지도 드래그로 번지지 않게 pointerdown 전파 차단.
+function MonsterMarker({
+  game,
+  eventMap,
+  onTap,
+}: {
+  game: Game;
+  eventMap: EventMap;
+  onTap?: () => void;
+}) {
   const p = project(eventMap, game.location);
   // 좌표가 지도 이미지(부지 bbox) 밖이어도 마커가 이미지 안에 머물도록 0~1 로 클램프.
   //   가장자리에서 마커가 반쯤 잘리지 않게 살짝 안쪽(2%~98%)으로 제한.
@@ -251,6 +288,8 @@ function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
     <div
       className="absolute -translate-x-1/2 -translate-y-1/2"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+      onPointerDown={onTap ? (e) => e.stopPropagation() : undefined}
+      onClick={onTap}
     >
       <div
         role="img"
@@ -268,7 +307,9 @@ function MonsterMarker({ game, eventMap }: { game: Game; eventMap: EventMap }) {
 }
 
 // 내 위치 마킹 — 파란 레이더 번짐(맥동) + 내비게이션 화살표 마커 이미지(mk_player.png).
+//   화살표(위=진행방향)는 나침반 헤딩에 맞춰 회전(북=0). 헤딩이 없으면(데스크톱 등) 회전 없음.
 function MyMarker({ ratio }: { ratio: XY }) {
+  const heading = useCompassHeading();
   return (
     <div
       // GPS 갱신이 띄엄띄엄이라 left/top 이 순간이동하지 않게 부드럽게 전환(카메라 팔로우와 맞춤).
@@ -283,6 +324,16 @@ function MyMarker({ ratio }: { ratio: XY }) {
         alt="내 위치"
         className="relative block h-11 w-11"
         draggable={false}
+        // 헤딩은 연속각(unwrap) — 359↔0 경계에서 한 바퀴 돌지 않고 전환으로 부드럽게 따라간다.
+        style={
+          heading !== null
+            ? {
+                transform: `rotate(${heading}deg)`,
+                transition: "transform 300ms ease-out",
+                willChange: "transform",
+              }
+            : undefined
+        }
       />
     </div>
   );

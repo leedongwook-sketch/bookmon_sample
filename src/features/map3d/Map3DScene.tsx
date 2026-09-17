@@ -24,11 +24,13 @@ export function Map3DScene({
   imageUrl,
   layout,
   games,
+  heading = null,
   onMonsterTrigger,
 }: {
   imageUrl: string;
   layout: GroundLayout;
   games: Game[];
+  heading?: number | null; // 나침반 헤딩(연속각, 도) — null이면 북쪽 위 고정(현행)
   onMonsterTrigger?: (game: Game) => void; // ⚠ 테스트 전용(2D와 동일 취급)
 }) {
   return (
@@ -50,23 +52,27 @@ export function Map3DScene({
 
       {/* 텍스처(SVG 지면)·폰트(Text) 비동기 로드 중 상위로 suspend가 새지 않게 경계. */}
       <Suspense fallback={null}>
-        <Ground imageUrl={imageUrl} layout={layout} />
+        {/* course-up: 지면+마커를 헤딩 반대로 회전 → 내가 보는 방향이 항상 화면 위.
+            마커는 빌보드(항상 카메라를 향함)라 배경과 함께 돌려도 위치만 바뀌고 이미지는 안 기운다. */}
+        <CourseUpGroup heading={heading}>
+          <Ground imageUrl={imageUrl} layout={layout} />
 
-        {/* 몬스터 마커 */}
-        {layout.monsters.map((p) => {
-          const game = games.find((g) => g.id === p.id);
-          if (!game) return null;
-          return (
-            <MonsterMarker
-              key={p.id}
-              point={p}
-              onTrigger={onMonsterTrigger ? () => onMonsterTrigger(game) : undefined}
-            />
-          );
-        })}
+          {/* 몬스터 마커 */}
+          {layout.monsters.map((p) => {
+            const game = games.find((g) => g.id === p.id);
+            if (!game) return null;
+            return (
+              <MonsterMarker
+                key={p.id}
+                point={p}
+                onTrigger={onMonsterTrigger ? () => onMonsterTrigger(game) : undefined}
+              />
+            );
+          })}
 
-        {/* 내 위치 마커 */}
-        <MyMarker point={layout.me} />
+          {/* 내 위치 마커 */}
+          <MyMarker point={layout.me} />
+        </CourseUpGroup>
       </Suspense>
 
       {/* 드래그=오빗 회전(yaw) + 원근 틸트. 줌 허용, 팬 비활성(중심 고정). */}
@@ -83,6 +89,34 @@ export function Map3DScene({
       />
     </Canvas>
   );
+}
+
+// course-up 회전 그룹 — 헤딩(시계방향, 도)에 맞춰 지면 전체를 반대로 돌린다.
+//   Y축 +회전은 위에서 볼 때 반시계 = 내 진행방향(시계방향 heading)을 화면 위(-Z)로 보냄.
+//   heading은 연속각(unwrap)이라 359↔0 경계에서도 목표각이 이어져 한 바퀴 도는 튐이 없고,
+//   프레임마다 지수 감쇠로 부드럽게 보간한다. null(데스크톱/센서 없음)이면 북쪽 위(0) 유지.
+function CourseUpGroup({
+  heading,
+  children,
+}: {
+  heading: number | null;
+  children: React.ReactNode;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const targetRef = useRef(0); // 목표 yaw(라디안). heading null이면 0(북쪽 위) 고정.
+
+  useEffect(() => {
+    if (heading !== null) targetRef.current = THREE.MathUtils.degToRad(heading);
+  }, [heading]);
+
+  useFrame((_, delta) => {
+    const g = groupRef.current;
+    if (!g) return;
+    // 지수 감쇠 보간 — 프레임레이트와 무관하게 일정한 감(계수 6/s).
+    g.rotation.y += (targetRef.current - g.rotation.y) * Math.min(1, delta * 6);
+  });
+
+  return <group ref={groupRef}>{children}</group>;
 }
 
 // WebGL 컨텍스트 lost/restored 가드 (Canvas 내부에서만 동작).
