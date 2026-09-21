@@ -54,6 +54,38 @@ body {
   overscroll-behavior: none;
 }
 
+/* ────────────────────────────────────────────────────────────
+   가로모드 강제 회전 (세로 안내 대신 콘텐츠를 90° 돌려 항상 가로로)
+   - 진짜 orientation lock 은 전체화면/PWA(Android)에서만 되고, 그때는 OS가 가로를 유지하므로
+     window 가 계속 가로 → force-landscape 미적용(이중 회전 없음).
+   - 잠금 미지원(iOS Safari 브라우저 등)에서 기기가 세로일 때만 body.force-landscape 가 붙어
+     #app-rotator 를 회전시켜 콘텐츠를 landscape 로 채운다. (PortraitGuard 가 토글)
+   ──────────────────────────────────────────────────────────── */
+#app-rotator {
+  display: contents; /* 평소(가로)엔 박스 없음 — 레이아웃 영향 0 */
+}
+body.force-landscape {
+  overflow: hidden;
+}
+body.force-landscape #app-rotator {
+  display: block;
+  position: fixed;
+  top: 100%;
+  left: 0;
+  width: 100vh; /* 회전 후 시각적 가로폭 = 뷰포트 높이 */
+  height: 100vw; /* 회전 후 시각적 세로높이 = 뷰포트 폭 */
+  transform: rotate(-90deg);
+  transform-origin: left top;
+  overflow: hidden;
+}
+/* 회전 시 dvh(뷰포트 높이 기준)를 쓰는 전체화면 컨테이너를 회전 후 실제 높이(=100vw)로 보정. */
+body.force-landscape .h-\[100dvh\] {
+  height: 100vw !important;
+}
+body.force-landscape .min-h-\[100dvh\] {
+  min-height: 100vw !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -211,5 +243,16 @@ button,
   37.5%,
   87.5% {
     transform: translateX(8px);
+  }
+}
+
+/* 3D 지도 하늘 배경 — 구름 레이어가 가로로 천천히 흘러간다(패럴랙스: 앞/뒤 속도 차).
+   background-position 이동만 애니메이션 → GPU 친화적. 타일 반복이라 이음새 없이 무한 순환. */
+@keyframes cloud-drift {
+  from {
+    background-position: 0 var(--cloud-y, 0);
+  }
+  to {
+    background-position: var(--cloud-span, 512px) var(--cloud-y, 0);
   }
 }

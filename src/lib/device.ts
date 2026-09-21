@@ -144,11 +144,11 @@ function isFullscreenWanted(): boolean {
 
 /**
  * 전체화면 복원 무장 — 앱 전역에서 1회 호출.
- *   AR 페이지에서 앱으로 **복귀**하면 최상위 이동이라 전체화면이 풀린다.
- *   "유지 의사"가 있고(=시작 게이트에서 진입) 아직 전체화면이 아니면,
- *   **첫 사용자 제스처**(탭)에 전체화면을 다시 넣는다(재진입엔 제스처가 필수).
- *   이미 PWA(standalone/fullscreen) 실행이거나 PC면 아무 것도 하지 않는다.
- *   정리 함수(리스너 해제)를 반환한다.
+ *   AR 페이지 복귀 또는 **브라우저를 나갔다 다시 들어오면**(탭 전환/홈 버튼) 전체화면이 풀린다.
+ *   재진입엔 사용자 제스처가 필수(브라우저 보안)라, "유지 의사"가 있으면 **복귀를 감지해**
+ *   즉시 재진입을 시도하고(대개 거부됨) 실패 시 **다음 탭에 재진입하도록 재무장**한다.
+ *   전체화면 진입 시 enterFullscreen 이 가로(landscape) 잠금까지 수행한다.
+ *   PWA(standalone) 실행이거나 PC면 아무 것도 하지 않는다. 정리 함수를 반환한다.
  */
 export function armFullscreenRestore(): () => void {
   if (typeof document === "undefined") return () => {};
@@ -156,23 +156,54 @@ export function armFullscreenRestore(): () => void {
   if (isStandalone()) return () => {}; // PWA 실행은 이미 몰입 — 불필요
   if (!isMobileDevice()) return () => {};
 
-  const restore = () => {
+  let armed = false;
+
+  // 첫 사용자 제스처에 전체화면(+가로 잠금) 재진입. 성공/실패 무관 1회 소비 후 해제.
+  const onGesture = () => {
+    disarmGesture();
+    if (!document.fullscreenElement) enterFullscreen();
+    else lockLandscape();
+  };
+  const armGesture = () => {
+    if (armed) return;
+    armed = true;
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("touchend", onGesture, true);
+    document.addEventListener("click", onGesture, true);
+  };
+  const disarmGesture = () => {
+    if (!armed) return;
+    armed = false;
+    document.removeEventListener("pointerdown", onGesture, true);
+    document.removeEventListener("touchend", onGesture, true);
+    document.removeEventListener("click", onGesture, true);
+  };
+
+  // 복귀 감지 — 백그라운드에서 돌아오면 전체화면이 풀렸는지 확인.
+  //   이미 전체화면이면 가로 잠금만 재확인, 아니면 즉시 재진입 시도 + 다음 탭 재무장.
+  const onReturn = () => {
+    if (document.visibilityState !== "visible") return;
+    if (isStandalone()) return;
     if (document.fullscreenElement) {
-      cleanup();
+      lockLandscape();
+      disarmGesture();
       return;
     }
-    enterFullscreen();
-    cleanup();
+    enterFullscreen(); // 제스처 없이는 대개 거부되지만 일부 환경은 허용
+    if (!document.fullscreenElement) armGesture(); // 실패 시 다음 탭에 재진입
   };
-  const cleanup = () => {
-    document.removeEventListener("pointerdown", restore, true);
-    document.removeEventListener("touchend", restore, true);
-    document.removeEventListener("click", restore, true);
+
+  armGesture(); // 최초 진입/AR 복귀 대비
+  document.addEventListener("visibilitychange", onReturn);
+  window.addEventListener("focus", onReturn);
+  window.addEventListener("pageshow", onReturn);
+
+  return () => {
+    disarmGesture();
+    document.removeEventListener("visibilitychange", onReturn);
+    window.removeEventListener("focus", onReturn);
+    window.removeEventListener("pageshow", onReturn);
   };
-  document.addEventListener("pointerdown", restore, true);
-  document.addEventListener("touchend", restore, true);
-  document.addEventListener("click", restore, true);
-  return cleanup;
 }
 
 /**

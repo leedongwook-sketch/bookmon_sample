@@ -1,1 +1,72 @@
-<svg width="900" height="960" viewBox="0 0 900 960" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="용인초등학교 지도"><defs><filter id="bs" x="-20%" y="-20%" width="150%" height="150%"><feDropShadow dx="1.5" dy="2" stdDeviation="2.5" flood-color="#00000020"/></filter></defs><rect width="900" height="960" fill="#dbd7d0"/><rect x="0" y="78" width="28" height="92" rx="1" fill="#c4c0b8"/><rect x="0" y="192" width="28" height="118" rx="1" fill="#c4c0b8"/><rect x="0" y="334" width="24" height="70" rx="1" fill="#c4c0b8"/><rect x="0" y="422" width="24" height="52" rx="1" fill="#c4c0b8"/><rect x="876" y="56" width="24" height="80" rx="1" fill="#c4c0b8"/><rect x="876" y="164" width="24" height="96" rx="1" fill="#c4c0b8"/><rect x="876" y="288" width="24" height="60" rx="1" fill="#c4c0b8"/><polygon points="0,852 37,852 872,724 900,724 900,744 872,744 37,872 0,872" fill="#dde0cc"/><polygon points="0,872 37,872 872,744 900,744 900,864 0,960" fill="#cdd0c6"/><line x1="0" y1="896" x2="900" y2="766" stroke="#b0b2a8" stroke-width="2.5"/><line x1="0" y1="904" x2="900" y2="774" stroke="#b0b2a8" stroke-width="2.5"/><line x1="0" y1="928" x2="900" y2="798" stroke="#b0b2a8" stroke-width="2.5"/><line x1="0" y1="936" x2="900" y2="806" stroke="#b0b2a8" stroke-width="2.5"/><polygon points="37,21 864,14 872,724 37,852" fill="#fdf5ca" stroke="#e54420" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><rect x="112" y="70" width="300" height="90" rx="2" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8" filter="url(#bs)"/><rect x="130" y="44" width="84" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="258" y="44" width="84" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="447" y="70" width="342" height="90" rx="2" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8" filter="url(#bs)"/><rect x="464" y="44" width="84" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="678" y="44" width="84" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="248" y="258" width="328" height="108" rx="2" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8" filter="url(#bs)"/><rect x="263" y="232" width="76" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="380" y="232" width="76" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="496" y="232" width="76" height="28" rx="1.5" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="88" y="502" width="144" height="148" rx="2" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8" filter="url(#bs)"/><rect x="88" y="683" width="112" height="82" rx="2" fill="#c0b8b0" stroke="#9c9488" stroke-width="0.8"/><rect x="288" y="448" width="454" height="272" rx="32" fill="#88dab6" stroke="#56b898" stroke-width="2"/><rect x="308" y="468" width="414" height="232" rx="24" fill="none" stroke="#68c8a6" stroke-width="1.5" stroke-dasharray="9,5" opacity="0.6"/><line x1="515" y1="448" x2="515" y2="720" stroke="#68c8a6" stroke-width="1.5" opacity="0.45"/><text x="450" y="12" text-anchor="middle" font-size="12" fill="#6a5e44" font-family="'Noto Sans KR', sans-serif">학산로</text><text x="890" y="369" text-anchor="middle" font-size="11" fill="#6a5e44" font-family="'Noto Sans KR', sans-serif" transform="rotate(90, 890, 369)">금학로383번길</text><text x="14" y="435" text-anchor="middle" font-size="11" fill="#6a5e44" font-family="'Noto Sans KR', sans-serif" transform="rotate(-90, 14, 435)">금학로370번길</text><text x="450" y="830" text-anchor="middle" font-size="12" fill="#6a5e44" font-family="'Noto Sans KR', sans-serif" transform="rotate(-9, 450, 830)">금학로</text><text x="415" y="415" text-anchor="middle" font-size="20" fill="#8a7238" font-family="'Noto Sans KR', sans-serif" font-weight="500" letter-spacing="1">용인초등학교</text></svg>
+<svg viewBox="0 0 900 960" xmlns="http://www.w3.org/2000/svg" width="900" height="960" role="img" aria-label="체험 모드 지도">
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9f1d8"/>
+      <stop offset="1" stop-color="#dde9c8"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="900" height="960"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <!-- 잔디 배경 -->
+    <rect width="900" height="960" fill="url(#grass)"/>
+
+    <!-- 큰 녹지/공원 구획 -->
+    <rect x="40" y="660" width="300" height="260" rx="18" fill="#cfe4ac"/>
+    <rect x="620" y="660" width="250" height="260" rx="18" fill="#cfe4ac"/>
+
+    <!-- 연못(우상 구석) — 건물과 겹치지 않는 독립 물 영역 -->
+    <rect x="700" y="60" width="160" height="120" rx="55" fill="#bfe3f5" stroke="#a6d4ee" stroke-width="6"/>
+
+    <!-- ===== 도로 격자 (가로3 · 세로3) ===== -->
+    <!-- 대로(굵은) -->
+    <g stroke="#e6dcc2" stroke-width="52" stroke-linecap="round">
+      <line x1="300" y1="0" x2="300" y2="960"/>
+      <line x1="620" y1="0" x2="620" y2="960"/>
+      <line x1="0" y1="320" x2="900" y2="320"/>
+      <line x1="0" y1="630" x2="900" y2="630"/>
+    </g>
+    <!-- 대로 중앙 점선 -->
+    <g stroke="#cdbf9c" stroke-width="3.5" stroke-dasharray="20 18" stroke-linecap="round">
+      <line x1="300" y1="0" x2="300" y2="960"/>
+      <line x1="620" y1="0" x2="620" y2="960"/>
+      <line x1="0" y1="320" x2="900" y2="320"/>
+      <line x1="0" y1="630" x2="900" y2="630"/>
+    </g>
+
+    <!-- ===== 건물 필지(구획별) ===== -->
+    <g stroke-width="4">
+      <!-- 좌상 -->
+      <rect x="70" y="70" width="150" height="100" rx="8" fill="#f3ddc0" stroke="#e3c79e"/>
+      <rect x="70" y="195" width="150" height="90" rx="8" fill="#f0d3d0" stroke="#e0b7b3"/>
+      <!-- 중상 -->
+      <rect x="360" y="90" width="200" height="180" rx="8" fill="#f3e6bf" stroke="#e2d199"/>
+      <!-- 좌중 -->
+      <rect x="70" y="390" width="150" height="180" rx="8" fill="#dfe7f2" stroke="#c3d0e6"/>
+      <!-- 중중 -->
+      <rect x="360" y="380" width="200" height="190" rx="8" fill="#e6ddef" stroke="#cfc1e0"/>
+      <!-- 우중 -->
+      <rect x="680" y="390" width="150" height="180" rx="8" fill="#f3ddc0" stroke="#e3c79e"/>
+      <!-- 우상 -->
+      <rect x="680" y="220" width="150" height="70" rx="8" fill="#f0d3d0" stroke="#e0b7b3"/>
+    </g>
+
+    <!-- 운동장(트랙) — 좌하 공원 안(세로 대로 x300 침범 방지: 오른쪽 끝 x250). -->
+    <rect x="80" y="720" width="170" height="130" rx="60" fill="#e7b98f" stroke="#d29e6f" stroke-width="5"/>
+    <rect x="108" y="748" width="114" height="74" rx="34" fill="#cfe4ac" stroke="#b7d488" stroke-width="4"/>
+
+    <!-- 우하 공원 나무 군집 -->
+    <g fill="#8fc36a" stroke="#6fa64c" stroke-width="4">
+      <circle cx="700" cy="730" r="28"/>
+      <circle cx="770" cy="770" r="32"/>
+      <circle cx="835" cy="725" r="26"/>
+      <circle cx="720" cy="820" r="26"/>
+      <circle cx="800" cy="850" r="28"/>
+    </g>
+
+    <!-- 로터리(교차 광장) -->
+    <circle cx="300" cy="320" r="26" fill="#efe7d2" stroke="#d8caa4" stroke-width="5"/>
+    <circle cx="620" cy="630" r="26" fill="#efe7d2" stroke="#d8caa4" stroke-width="5"/>
+    <circle cx="620" cy="630" r="10" fill="#cfe4ac"/>
+  </g>
+</svg>

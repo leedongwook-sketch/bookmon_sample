@@ -246,6 +246,15 @@ function showAr(): void {
 }
 
 /**
+ * AR 이 현재 화면에 활성(진행 중)인지 — 조우 잠금 고착 복구 판단용.
+ *   컨테이너가 있고 숨김(display:none)이 아니면 활성. 종료 시 hideAr 로 숨겨 false 가 된다.
+ *   useEncounterFlow 가 leaving 이 true 인데 이 값이 false 면 "비정상 종료로 잠금 고착"으로 보고 복구.
+ */
+export function isArActive(): boolean {
+  return container !== null && container.style.display !== "none";
+}
+
+/**
  * AR 완전 teardown — 카메라/엔진 정지 + 주입 스크립트/DOM 제거.
  *   단일 문서 재사용에선 조우마다 호출하지 않고(hideAr 로 유지), 세션 종료 등에서만 쓴다.
  *   ⚠ 재실행 오염 때문에 teardown 후 다시 mountAr 하면 재주입이 일어난다 — 되도록 쓰지 말 것.

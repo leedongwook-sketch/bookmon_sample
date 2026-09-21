@@ -5,10 +5,16 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   #boot-overlay.fade-out { opacity: 0; pointer-events: none; }
-  /* Tiny loading label, bottom-left. */
+  /* Tiny loading label, bottom-left. Animated "..." dots show progress. */
   #boot-overlay .loading {
     position: absolute; left: 14px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     font-size: 11px; letter-spacing: 0.3px; color: #9aa0aa;
+  }
+  #boot-overlay .loading .dots::after {
+    content: ''; animation: loading-dots 1.2s steps(1,end) infinite;
+  }
+  @keyframes loading-dots {
+    0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } 100% { content: ''; }
   }
   /* Desktop / unsupported guidance — centered, shown only on non-mobile. */
   #boot-overlay .desktop-hint {
@@ -77,6 +83,13 @@
     26% { opacity: 0.72; }       /* settle */
     100% { opacity: 1; }         /* dark vignette holds */
   }
+  /* After the fail vignette holds for a beat, a white layer fades IN on top,
+     covering the vignette so the run ends on a clean white screen (like success). */
+  #result-white {
+    position: fixed; inset: 0; z-index: 52; background: #ffffff;
+    opacity: 0; pointer-events: none; transition: opacity 1.5s ease;
+  }
+  #result-white.show { opacity: 1; }
 
   /* Camera shake: applied to the AR canvas. The slight scale hides the edges
      that the translation would otherwise reveal. */
@@ -103,6 +116,14 @@
   #game-ui {
     position: fixed; inset: 0; z-index: 20; pointer-events: none;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Responsive sizing tokens — clamp(min, vmin-based, max) so the HUD scales up
+       on tablets (bigger screen ⇒ bigger UI) while staying sensible on phones.
+       vmin (short side) avoids over-scaling on wide/landscape tablets. */
+    --cap-btn: clamp(68px, 11vmin, 92px);          /* shutter button (phone ≈68px, +10%) */
+    --cap-gauge-h: clamp(16px, 2.6vmin, 28px);     /* gauge bar height */
+    --cap-bar-pad: clamp(14px, 2.4vmin, 30px);     /* bottom bar padding */
+    --cap-btn-gap: clamp(16px, 2.6vmin, 34px);     /* button inset from right edge */
+    --cap-readout: clamp(11px, 1.9vmin, 18px);     /* center "📷 30초" font size */
   }
   #xh-kill, #xh-cap { display: none; }
   #game-ui[data-phase="kill"] #xh-kill { display: block; }
@@ -119,22 +140,34 @@
     width: 150px; height: auto;
   }
 
-  /* Capture-phase reticle: viewfinder corner brackets + center circle. */
+  /* Capture-phase reticle: viewfinder corner brackets + center circle. The
+     bracket FRAME spans from near the top edge down to JUST ABOVE the gauge bar
+     (so the bottom corners never overlap the gauge / camera button). The aim
+     circle is positioned independently at the true screen centre. */
   #xh-cap {
-    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: min(80vw, 460px); height: min(54vh, 420px);
+    position: fixed; left: 4vw; right: 4vw; top: 7vh;
+    /* Bottom edge sits above the gauge row + its sweeping arrow. */
+    bottom: calc(var(--cap-bar-pad) + var(--cap-gauge-h) + 46px + env(safe-area-inset-bottom, 0px));
+    transform: none;
   }
-  #xh-cap .corner { position: absolute; width: 30px; height: 30px; border: 3px solid #fff; }
+  #xh-cap .corner {
+    position: absolute; border: 3px solid #fff;
+    width: clamp(30px, 5vmin, 56px); height: clamp(30px, 5vmin, 56px);
+    border-width: clamp(3px, 0.5vmin, 5px);
+  }
   #xh-cap .corner.tl { left: 0; top: 0; border-right: 0; border-bottom: 0; }
   #xh-cap .corner.tr { right: 0; top: 0; border-left: 0; border-bottom: 0; }
   #xh-cap .corner.bl { left: 0; bottom: 0; border-right: 0; border-top: 0; }
   #xh-cap .corner.br { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+  /* Aim circle — fixed at the TRUE screen centre (aim point), independent of the
+     bracket frame so shifting the frame up never moves the aim reticle. */
   #xh-cap-center {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 120px; height: auto;
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: clamp(120px, 35vmin, 440px); height: auto;
   }
-  /* Quick reticle pop on each capture (paired with the shutter flash). */
-  #xh-cap.snap { animation: cap-snap 220ms ease-out; }
+  /* Quick reticle pop on each capture (paired with the shutter flash) — applied
+     to the centre aim circle (the frame no longer uses a centering transform). */
+  #xh-cap.snap #xh-cap-center { animation: cap-snap 220ms ease-out; }
   @keyframes cap-snap {
     0% { transform: translate(-50%, -50%) scale(1); }
     35% { transform: translate(-50%, -50%) scale(1.12); }
@@ -219,13 +252,17 @@
   #cap-bar {
     position: fixed; left: 0; right: 0; bottom: 0; display: none;
     align-items: center; justify-content: center;
-    padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    padding: var(--cap-bar-pad) 16px calc(var(--cap-bar-pad) + 4px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box; pointer-events: none;
   }
-  /* Slim gauge — centered; the width caps keep it clear of the camera button. */
+  /* Slim gauge — centered; width caps keep it clear of the (responsive) camera
+     button on both sides so it stays at the true horizontal centre. */
   #cap-gauge {
-    position: relative; flex: 0 0 auto; height: 16px;
-    width: min(66vw, 100vw - 184px, 560px);
+    position: relative; flex: 0 0 auto; height: var(--cap-gauge-h);
+    /* ~70% of the screen (per the reference), but never so wide it collides with
+       the camera button on either side. No fixed max cap — it scales with the
+       screen so tablets don't leave it tiny. */
+    width: min(70vw, 100vw - (2 * var(--cap-btn) + 3 * var(--cap-btn-gap)));
   }
   /* All gauge layers share border-radius:999px so their corners are unified
      into one pill. The track clips the zone; the frame is a separate top
@@ -283,7 +320,7 @@
     display: block; line-height: 0;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
   }
-  #cap-indi img { width: 20px; height: auto; display: block; }
+  #cap-indi img { width: clamp(20px, 3.2vmin, 32px); height: auto; display: block; }
   #cap-indi.miss img { animation: indi-miss 0.3s ease-out; }
   @keyframes indi-miss {
     0%,100% { filter: none; }
@@ -293,30 +330,32 @@
      dead-center ON the bar, yellow #EDD927 with a dark shadow for contrast. */
   #cap-center {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    display: flex; align-items: center; gap: 3px; z-index: 3; pointer-events: none;
-    color: #f2dc32; font-weight: 800; font-size: 11px; line-height: 1;
+    display: flex; align-items: center; gap: 0.28em; z-index: 3; pointer-events: none;
+    color: #f2dc32; font-weight: 800; font-size: var(--cap-readout); line-height: 1;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     /* Tight, dark shadow hugging the glyphs (no soft spread). */
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.85);
     white-space: nowrap;
   }
   #cap-cam-icon {
-    width: 10px; height: 10px; flex: 0 0 auto;
+    width: 0.95em; height: 0.95em; flex: 0 0 auto;
     filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.9));
   }
   #cap-cam-icon svg { width: 100%; height: 100%; display: block; }
   /* Camera button — pinned to the bar's right edge (absolute, so it doesn't
      push the gauge off the screen's horizontal centre). */
   #cap-camera {
-    position: absolute; right: 16px;
-    top: 22px;                     /* bar top padding 14px + gauge half 8px */
-    transform: translateY(-50%);   /* → centered on the gauge row */
+    position: absolute; right: var(--cap-btn-gap);
+    /* Vertically centered on the gauge row: bar top padding + half the gauge. */
+    top: calc(var(--cap-bar-pad) + var(--cap-gauge-h) / 2);
+    transform: translateY(-50%);
     pointer-events: auto; border: none; background: none; padding: 0;
-    width: 62px; height: 62px; outline: none; -webkit-appearance: none; appearance: none;
+    width: var(--cap-btn); height: var(--cap-btn);
+    outline: none; -webkit-appearance: none; appearance: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-user-select: none; user-select: none;
   }
-  /* Invisible enlarged tap target (image stays 62px). */
+  /* Invisible enlarged tap target (image keeps the button size). */
   #cap-camera::before {
     content: ''; position: absolute; inset: -22px; border-radius: 50%;
   }
@@ -365,14 +404,28 @@
   /* ===== 퀴즈(카메라 위) — front QuizLayer 충실 포팅(바닐라). ===== */
   @keyframes q-answer-pop { 0%{transform:scale(.3);opacity:0} 55%{transform:scale(1.18);opacity:1} 75%{transform:scale(.94)} 100%{transform:scale(1);opacity:1} }
   @keyframes q-confetti-fly { 0%{transform:translate(0,0) rotate(0) scale(1);opacity:1} 70%{opacity:1} 100%{transform:translate(var(--cx),var(--cy)) rotate(var(--cr)) scale(.7);opacity:0} }
-  #quiz-ui { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(18,33,58,.55); padding:12px; }
+  #quiz-ui { position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; background:rgba(18,33,58,.55);
+    padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px)); }
   #quiz-ui.show { display:flex; }
   /* Quiz font: Noto Sans KR (buttons don't inherit font-family, so include *). */
   #quiz-ui, #quiz-ui * {
     box-sizing:border-box;
     font-family:'Noto Sans KR', -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   }
-  .q-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; width:min(94vw,560px,108dvh); }
+  /* The whole quiz (card + gauge) scales AS ONE with the screen while keeping its
+     proportions: no fixed px cap — the width is driven by the viewport (vw) and
+     capped by height (vh) so on a 16:10 tablet the card+gauge always fit and grow
+     with the screen. `container-type` makes the gauge use the SAME cqw scale as
+     the card, so both stay in proportion at every size. */
+  /* Width is capped BY HEIGHT so the whole stack (card ≈0.675×w + gap + gauge)
+     always fits inside the visible viewport (dvh = real height minus browser UI)
+     minus the safe-area/padding — the gauge can never be clipped off-screen.
+     Divisor 0.76 is the safe minimum: any lower clips the card vertically on
+     landscape/tablet (the stack already uses most of the height there). vw cap
+     98vw lets portrait screens use nearly the full width. Together these enlarge
+     the card as much as possible WITHOUT ever clipping the gauge off-screen. */
+  .q-wrap { container-type:inline-size; display:flex; flex-direction:column; align-items:center; gap:2cqw;
+    width:min(98vw, calc((100dvh - 24px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)) / 0.76)); }
   .q-card { container-type:inline-size; position:relative; width:100%; aspect-ratio:1400/945; background:url('/ar/shooting/assets/quiz/quiz_frame.png') 0 0/100% 100% no-repeat; }
   .q-inner { position:absolute; left:8%; right:9%; top:11%; bottom:18.5%; display:flex; flex-direction:column; }
   .q-title { padding-top:1%; text-align:center; }
@@ -391,14 +444,16 @@
   .q-oxbtn:active { transform:translateY(3px) scale(.97); }
   .q-oxbtn.dead { pointer-events:none; opacity:.35; filter:grayscale(1); }
   .q-oxbtn svg { width:58%; height:58%; }
-  .q-gauge { width:94%; flex-shrink:0; border-radius:9999px; padding:3px; background:#724019; box-shadow:0 4px 8px rgba(0,0,0,.35); }
-  .q-track { position:relative; height:clamp(14px,3.4dvh,22px); overflow:hidden; border-radius:9999px; background:#372314; }
+  /* Gauge sized in cqw (same container as the card) so it scales in proportion
+     with the card on every screen. Width ~72% of the card matches the mock. */
+  .q-gauge { width:72%; flex-shrink:0; border-radius:9999px; padding:0.6cqw; background:#724019; box-shadow:0 4px 8px rgba(0,0,0,.35); }
+  .q-track { position:relative; height:3cqw; min-height:12px; overflow:hidden; border-radius:9999px; background:#372314; }
   .q-fill { height:100%; border-radius:9999px; background:linear-gradient(180deg,#6eb72d,#055a25); box-shadow:inset 0 2px 2px rgba(255,255,255,.45); transition:width .1s linear; }
-  .q-secs { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#ffdd32; text-shadow:0 1px 1px rgba(0,0,0,.5); }
+  .q-secs { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:max(11px, 2.3cqw); font-weight:800; color:#ffdd32; text-shadow:0 1px 1px rgba(0,0,0,.5); }
   .q-result { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; pointer-events:none; }
   .q-result .mark { font-size:14cqw; font-weight:700; line-height:1; animation:q-answer-pop 520ms cubic-bezier(.34,1.56,.64,1) both; text-shadow:0 3px 0 rgba(0,0,0,.18),0 6px 10px rgba(0,0,0,.25); }
   .q-confetti { position:absolute; left:50%; top:50%; width:0; height:0; }
-  .q-confetti span { position:absolute; left:0; top:0; display:block; width:7px; height:10px; border-radius:1px; animation:q-confetti-fly 900ms ease-out forwards; }</style><div id="boot-overlay"><span class="loading">loading...</span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="/ar/shooting/assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="/ar/shooting/assets/cap_white.png" alt=""></div><img id="discover-fx" src="/ar/shooting/assets/ar_effect1.png" alt=""><div id="countdown"><img id="countdown-img" src="/ar/shooting/assets/start_3.png" alt=""></div><img id="start-banner" src="/ar/shooting/assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-zone"></div></div><div id="cap-frame"></div><span id="cap-indi"><img src="/ar/shooting/assets/indi.png" alt=""></span><span id="cap-center" aria-hidden="true"><span id="cap-cam-icon"><svg viewBox="0 0 24 24" fill="#f2dc32"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a3a12"></circle></svg> </span><span class="t"><span id="cap-secs">30</span>초</span></span></div><button id="cap-camera" type="button" aria-label="capture"><img src="/ar/shooting/assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
+  .q-confetti span { position:absolute; left:0; top:0; display:block; width:7px; height:10px; border-radius:1px; animation:q-confetti-fly 900ms ease-out forwards; }</style><div id="boot-overlay"><span class="loading">loading<span class="dots"></span></span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="result-white" aria-hidden="true"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="/ar/shooting/assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="/ar/shooting/assets/cap_white.png" alt=""></div><img id="discover-fx" src="/ar/shooting/assets/ar_effect1.png" alt=""><div id="countdown"><img id="countdown-img" src="/ar/shooting/assets/start_3.png" alt=""></div><img id="start-banner" src="/ar/shooting/assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-zone"></div></div><div id="cap-frame"></div><span id="cap-indi"><img src="/ar/shooting/assets/indi.png" alt=""></span><span id="cap-center" aria-hidden="true"><span id="cap-cam-icon"><svg viewBox="0 0 24 24" fill="#f2dc32"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a3a12"></circle></svg> </span><span class="t"><span id="cap-secs">30</span>초</span></span></div><button id="cap-camera" type="button" aria-label="capture"><img src="/ar/shooting/assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
   // World-tracking AR needs the gyroscope/accelerometer. On iOS 13+ that
   // permission can only be requested from inside a user gesture, so the engine
   // otherwise shows its own "AR requires access to device motion sensors" prompt
@@ -642,15 +697,26 @@
       if (nonce != null) res.nonce = nonce
       sessionStorage.setItem('bookmon-ar-res', JSON.stringify(res))
     } catch (e) { /* no-op */ }
-    // 2) After the grace period, stop the engine and go to `return` (no query).
+    // 2) After the grace period (once the result overlay has fully covered the
+    // screen), stop/pause the engine. We DON'T pause immediately: pausing halts
+    // the render loop and blanks the camera canvas to white — which showed
+    // through the fail vignette's transparent centre as an instant white screen.
+    // Waiting until the white overlay is up means freezing the feed is invisible.
     var graceMs = (opts && typeof opts.graceMs === 'number')
       ? opts.graceMs
       : (type === 'success' ? 2500 : 0)   // success: let an effect play; else now
     var ret = bmReturnPath()
     function finish() {
-      if (window.__bookmonEmbeddedDone) { try { window.__bookmonEmbeddedDone(res) } catch (e) {} return }
-      window.__bookmonStopAR();
-      if (ret) { try { window.location.assign(ret) } catch (e) {} }
+      if (ret) {
+        // Leaving the page → fully tear the engine down and navigate away.
+        window.__bookmonStopAR()
+        try { window.location.assign(ret) } catch (e) { /* no-op */ }
+      } else {
+        // Single-document reuse: don't stop() (hard, non-resumable). PAUSE now —
+        // the result overlay is fully up, so freezing the feed is invisible.
+        // A later __bookmonRestart calls XR8.resume() for the next game.
+        if (window.__bookmonEmbeddedDone) { try { window.__bookmonEmbeddedDone(res) } catch (e) {} } try { if (window.XR8 && XR8.pause) XR8.pause() } catch (e) { /* no-op */ }
+      }
     }
     if (graceMs > 0) setTimeout(finish, graceMs)
     else finish()
@@ -663,7 +729,7 @@
       window.__bookmonEnded = false
       sessionStorage.removeItem('bookmon-ar-res')
       var rfx = document.getElementById('result-fx'); if (rfx) { rfx.className = ''; }
-      var sp = document.getElementById('success-photos'); if (sp) { sp.className = ''; }
+      var rw = document.getElementById('result-white'); if (rw) { rw.className = ''; }
       var gu = document.getElementById('game-ui'); if (gu) { gu.setAttribute('data-phase', 'none'); }
       var q = document.getElementById('quiz-ui'); if (q) { q.className = ''; q.innerHTML = ''; }
     } catch (e) { /* no-op */ }
@@ -678,6 +744,49 @@
     el.__done = true
     el.classList.add('fade-out')
     setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el) }, 850)
+  };
+
+  // === Asset preload gate ================================================
+  // Preload every UI image the game/quiz uses up-front, so game logic never
+  // runs against a not-yet-decoded image (which caused occasional glitches).
+  // Resolves when all are loaded OR a safety timeout elapses (never hangs).
+  // The host `image` and the monster sprite SHEETS are gated separately
+  // (bookmon-ar-req.image probe below / target-monster's __bookmonWhenSpritesReady).
+  window.__bookmonWhenAssetsReady = (function () {
+    var IMAGES = [
+      '/ar/shooting/assets/cap_white.png', '/ar/shooting/assets/cap_green.png',
+      '/ar/shooting/assets/indi.png', '/ar/shooting/assets/cam_normal.png',
+      '/ar/shooting/assets/start.png', '/ar/shooting/assets/start_1.png', '/ar/shooting/assets/start_2.png', '/ar/shooting/assets/start_3.png',
+      '/ar/shooting/assets/ar_effect1.png', '/ar/shooting/assets/ar_effect2.png',
+      '/ar/shooting/assets/quiz/quiz_frame.png',
+      '/ar/shooting/assets/success/P_succ1.png', '/ar/shooting/assets/success/P_succ2.png', '/ar/shooting/assets/success/P_succ3.png',
+    ]
+    var ASSET_TIMEOUT_MS = 10000
+    var p = new Promise(function (resolve) {
+      var remaining = IMAGES.length
+      if (!remaining) { resolve(); return }
+      var done = false
+      var finish = function () { if (!done) { done = true; resolve() } }
+      var one = function () { if (--remaining <= 0) finish() }
+      IMAGES.forEach(function (src) {
+        var im = new Image()
+        im.onload = one
+        im.onerror = one   // a missing/optional asset must not block the gate
+        im.src = src
+      })
+      try { setTimeout(finish, ASSET_TIMEOUT_MS) } catch (e) { finish() }
+    })
+    return function () { return p }
+  })()
+
+  // Combined readiness: UI images + monster sprite sheets (set by target-monster
+  // once it has chroma-keyed them). Both the overlay fade AND the game start wait
+  // on this, so nothing runs before its images are decoded. Never rejects.
+  window.__bookmonWhenReady = function () {
+    var ps = []
+    try { if (window.__bookmonWhenAssetsReady) ps.push(window.__bookmonWhenAssetsReady()) } catch (e) {}
+    try { if (window.__bookmonWhenSpritesReady) ps.push(window.__bookmonWhenSpritesReady()) } catch (e) {}
+    return Promise.all(ps).catch(function () {})
   };
 
   // If the host-supplied image (bookmon-ar-req.image) fails to load, end early as
@@ -899,15 +1008,22 @@
 
     // End-of-game screen effect:
     //   'success' → the screen gradually fills with white
-    //   'fail'    → a red flash that dims to a dark vignette
-    // (The per-capture pose stills are shown ON the monster itself, in-scene, so
-    // there is no overlay still sequence here anymore.)
+    //   'fail'    → a red flash → dark red vignette HOLDS ~2.5s → white fades in
+    //               over the vignette, ending on a clean white screen.
+    var failWhiteTimer = null
     function showResult(type) {
       var el = document.getElementById('result-fx')
+      var white = document.getElementById('result-white')
       if (!el) return
       el.classList.remove('win', 'lose')
+      if (white) white.classList.remove('show')
+      if (failWhiteTimer) { clearTimeout(failWhiteTimer); failWhiteTimer = null }
       void el.offsetWidth
       el.classList.add(type === 'success' ? 'win' : 'lose')
+      if (type !== 'success' && white) {
+        // Let the red vignette read for a beat, then fade white in over it.
+        failWhiteTimer = setTimeout(function () { white.classList.add('show') }, 2500)
+      }
     }
 
     // Capture session = a single TIME countdown. The dark-green fill and the
@@ -1091,4 +1207,27 @@
       });
     }
   };
-})();</script><script src="/ar/shooting/bundle.js"></script></body></html>
+})();</script><script>;(function () {
+    var QUIZ_PREVIEW = false    // ← 퀴즈 바로보기 (테스트용). true로 켜면 AR 생략하고 퀴즈부터
+    if (!QUIZ_PREVIEW) return
+    try {
+      var h = location.hostname || ''
+      var isDev = h === 'localhost' || h === '127.0.0.1' ||
+        /^192\.168\./.test(h) || /^10\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h)
+      if (!isDev) return
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          // 부팅 흰 화면 제거하고, 호스트/시드 퀴즈(없으면 샘플)를 바로 띄운다.
+          try { if (window.__bookmonReady) window.__bookmonReady() } catch (e) {}
+          var req = null
+          try { req = JSON.parse(sessionStorage.getItem('bookmon-ar-req') || 'null') } catch (e) {}
+          var quiz = (req && req.quiz && req.quiz.content) ? req.quiz : {
+            content: '소가 내뿜는 방귀와 트림이 지구 온난화를 일으키기 때문에 에스토니아에서 소를 키우면 방귀세를 내야한다',
+            type: 'OX', choice1: 'O', choice2: 'X', choice3: null, choice4: null,
+            answer: 1, description: null, title: '녹색지구를 만드는 나의 작은 실천',
+          }
+          if (window.__bookmonQuiz) window.__bookmonQuiz.show(quiz)
+        }, 400)
+      })
+    } catch (e) { /* no-op */ }
+  })()</script><script src="/ar/shooting/bundle.js"></script></body></html>

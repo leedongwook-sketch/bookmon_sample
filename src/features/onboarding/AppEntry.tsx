@@ -16,10 +16,12 @@ import { StartGate } from "./StartGate";
  * 앱 진입 공통 게이트.
  *  0) "탭하여 시작" 스플래시(StartGate) — 탭 시 AR 권한(카메라·모션)을 최상위에서 1회 선요청.
  *     (AR이 top-level 이라 이후 /ar/shooting 진입 시 OS 권한창 재요청 없음)
- *  1) localStorage("bookmon-game") 검사
+ *  1) sessionStorage("bookmon-game") 검사
  *  2) 없음 → 온보딩(모드선택 BM-101 →…)
  *  3) 있음 → GameState 구조 검증
- *       - 정상(플레이 가능) 데이터 → /map 이동
+ *       - 정상(플레이 가능) & 행사모드(real) → /map3d 자동 진입
+ *       - 정상이지만 체험모드(practice) → 자동 진입 안 함(온보딩). 체험 데이터는 GPS 기반으로
+ *         /play 에서 매번 새로 구성하므로, 재진입 시 모드선택부터 다시 타는 게 자연스럽다.
  *       - 손상 데이터 → 정리 후 온보딩 / 유효하나 미완 → 온보딩
  *
  * 게이트 통과 후의 온보딩 UI(모드선택 + 학교 단계)는 OnboardingFlow가 담당한다.
@@ -36,7 +38,11 @@ export function AppEntry() {
 
     if (saved !== null && !isValidGameState(saved)) {
       clearSavedGameState(); // 구조 손상 → 정리
-    } else if (isPlayableGameState(saved)) {
+    } else if (
+      isPlayableGameState(saved) &&
+      saved.playContext.mode === "real"
+    ) {
+      // 행사모드(real)만 자동 진입. 체험모드(practice)는 GPS 기반 재구성이라 온보딩부터 다시 탄다.
       router.replace("/map3d"); // 정상 게임데이터 → 지도(3D 기본)로
       return; // 스플래시 유지한 채 이동
     }

@@ -34,20 +34,29 @@ export function Map3DScene({
   games,
   heading = null,
   onMonsterTrigger,
+  onAzimuth,
 }: {
   imageUrl: string;
   layout: GroundLayout;
   games: Game[];
   heading?: number | null; // 나침반 헤딩(연속각, 도) — null이면 북쪽 위 고정(현행)
   onMonsterTrigger?: (game: Game) => void; // ⚠ 테스트 전용(2D와 동일 취급)
+  onAzimuth?: (deg: number) => void; // 드래그(오빗) 카메라 방위각(도) — 하늘 배경 동기 회전용
 }) {
+  // course-up 그룹의 현재 회전각(rad)을 프레임마다 공유 → 내 위치 화살표가 이를 상쇄해 화면 위 고정.
+  const courseUpYRef = useRef(0);
   return (
     <Canvas
       shadows={false}
       dpr={[1, 2]}
+      // ⚠ offsetSize: 세로→강제 가로회전(PortraitGuard의 CSS transform:rotate) 시 r3f 가 크기를
+      //   getBoundingClientRect(회전 후 bbox=가로/세로 뒤바뀜)로 재면 종횡비가 어긋나 화면이 반쪽으로
+      //   깨진다. offsetWidth/Height(레이아웃 크기, transform 영향 없음)로 측정하게 해 정상 렌더.
+      resize={{ offsetSize: true }}
       // 컨텍스트 안정화: 성능 우선 + 성능저하(소프트웨어 렌더러)에도 컨텍스트 생성 허용.
       gl={{ powerPreference: "high-performance", failIfMajorPerformanceCaveat: false }}
-      camera={{ position: [0, 0.4, 0.4], fov: 45, near: 0.01, far: 100 }}
+      // 초기 카메라 — 높이↓·수평거리↑ 로 눕혀(약 60°) 비스듬히 바라본다(기존 45° 대비 더 낮은 시점).
+      camera={{ position: [0, 0.28, 0.5], fov: 45, near: 0.01, far: 100 }}
       className="h-full w-full"
     >
       {/* WebGL 컨텍스트 lost/restored 처리 — StrictMode 이중마운트/컨텍스트 한도 초과로
@@ -62,9 +71,10 @@ export function Map3DScene({
 
       {/* 텍스처(SVG 지면)·폰트(Text) 비동기 로드 중 상위로 suspend가 새지 않게 경계. */}
       <Suspense fallback={null}>
-        {/* course-up: 지면+마커를 헤딩 반대로 회전 → 내가 보는 방향이 항상 화면 위.
-            마커는 빌보드(항상 카메라를 향함)라 배경과 함께 돌려도 위치만 바뀌고 이미지는 안 기운다. */}
-        <CourseUpGroup heading={heading}>
+        {/* course-up: 지면+마커를 헤딩에 맞춰 회전 → 내가 보는 방향이 항상 화면 위.
+            내 위치 화살표만은 이 회전을 상쇄해 '항상 화면 위(진행방향)'를 가리키게 한다
+            (courseUpYRef 공유). 지도/몬스터는 함께 돌고 화살표만 화면 고정. */}
+        <CourseUpGroup heading={heading} yRef={courseUpYRef}>
           <Ground imageUrl={imageUrl} layout={layout} />
 
           {/* 몬스터 마커 */}
@@ -80,12 +90,13 @@ export function Map3DScene({
             );
           })}
 
-          {/* 내 위치 마커 */}
-          <MyMarker point={layout.me} />
+          {/* 내 위치 마커 — course-up 회전 상쇄(화살표는 화면 위 고정). */}
+          <MyMarker point={layout.me} courseUpYRef={courseUpYRef} />
         </CourseUpGroup>
       </Suspense>
 
-      {/* 드래그=오빗 회전(yaw) + 원근 틸트. 줌 허용, 팬 비활성(중심 고정). */}
+      {/* 드래그=오빗 회전(yaw) + 원근 틸트. 줌 허용, 팬 비활성(중심 고정).
+          onChange: 드래그로 카메라 방위각이 바뀌면 도(deg)로 부모에 알려 하늘 배경을 같이 회전시킨다. */}
       <OrbitControls
         makeDefault
         enablePan={false}
@@ -97,6 +108,8 @@ export function Map3DScene({
         maxDistance={2.5}
         target={[0, 0, 0]}
       />
+      {/* 드래그(오빗) 방위각을 매 프레임 폴링해 하늘 배경에 전달 — onChange 보다 확실·부드러움. */}
+      {onAzimuth && <AzimuthReporter onAzimuth={onAzimuth} />}
     </Canvas>
   );
 }
@@ -107,9 +120,11 @@ export function Map3DScene({
 //   프레임마다 지수 감쇠로 부드럽게 보간한다. null(데스크톱/센서 없음)이면 북쪽 위(0) 유지.
 function CourseUpGroup({
   heading,
+  yRef,
   children,
 }: {
   heading: number | null;
+  yRef: React.RefObject<number>; // 현재 회전각(rad)을 프레임마다 기록 → 화살표 상쇄용
   children: React.ReactNode;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -124,9 +139,40 @@ function CourseUpGroup({
     if (!g) return;
     // 지수 감쇠 보간 — 프레임레이트와 무관하게 일정한 감(계수 6/s).
     g.rotation.y += (targetRef.current - g.rotation.y) * Math.min(1, delta * 6);
+    yRef.current = g.rotation.y; // 화살표(MyMarker)가 이 값을 상쇄해 화면 위 고정
   });
 
   return <group ref={groupRef}>{children}</group>;
+}
+
+// 드래그(오빗) 방위각 리포터 — makeDefault OrbitControls 를 useThree 로 읽어 매 프레임 방위각을 폴링.
+//   첫 값을 기준(0)으로 삼고(초기 카메라 azimuth ~180° 보정), 연속각(unwrap)으로 누적해
+//   경계 360° 튐 없이 '변화량(도)'만 부모(하늘 배경)에 전달한다. 변화가 있을 때만 emit.
+function AzimuthReporter({ onAzimuth }: { onAzimuth: (deg: number) => void }) {
+  const controls = useThree((s) => s.controls) as
+    | { getAzimuthalAngle?: () => number }
+    | null;
+  const unwrapRef = useRef<number | null>(null);
+  const baseRef = useRef(0);
+
+  useFrame(() => {
+    if (!controls?.getAzimuthalAngle) return;
+    const raw = THREE.MathUtils.radToDeg(controls.getAzimuthalAngle()); // -180~180
+    const prev = unwrapRef.current;
+    if (prev === null) {
+      unwrapRef.current = raw;
+      baseRef.current = raw; // 첫 값 = 기준(0)
+    } else {
+      const prevMod = ((prev % 360) + 360) % 360;
+      let diff = raw - prevMod;
+      diff = (((diff % 360) + 540) % 360) - 180; // 최단경로(-180~180)
+      unwrapRef.current = prev + diff;
+    }
+    // 매 프레임 즉시 전달 — 수신부가 DOM 직접 갱신(React 우회)이라 스로틀 불필요.
+    onAzimuth(unwrapRef.current - baseRef.current);
+  });
+
+  return null;
 }
 
 // WebGL 컨텍스트 lost/restored 가드 (Canvas 내부에서만 동작).
@@ -295,18 +341,29 @@ function BookSpriteFallback({ onTrigger }: { onTrigger?: () => void }) {
   );
 }
 
-// 내 위치 마커 — 파란 레이더 번짐(지면 확장) + 내비게이션 화살표 마커 이미지(빌보드).
-function MyMarker({ point }: { point: GroundPoint }) {
+// 내 위치 마커 — 파란 레이더 번짐(지면 확장) + 내비게이션 화살표 마커 이미지(지면에 수평).
+function MyMarker({
+  point,
+  courseUpYRef,
+}: {
+  point: GroundPoint;
+  courseUpYRef: React.RefObject<number>;
+}) {
   const texture = useTexture("/images/mk_player.png");
   const radarRef = useRef<THREE.Mesh>(null);
+  const counterRef = useRef<THREE.Group>(null); // course-up 회전 상쇄 그룹(화살표 화면 위 고정)
 
-  // 레이더 번짐: 지면 원이 중심에서 퍼지며 사라지는 것을 반복(2D animate-ping과 동일 감).
   useFrame(({ clock }) => {
+    // 레이더 번짐: 지면 원이 중심에서 퍼지며 사라지는 것을 반복(2D animate-ping과 동일 감).
     const m = radarRef.current;
-    if (!m) return;
-    const t = (clock.getElapsedTime() % 1.6) / 1.6; // 0..1 루프
-    m.scale.setScalar(1 + t * 2.4); // 확장
-    (m.material as THREE.MeshBasicMaterial).opacity = 0.4 * (1 - t); // 페이드아웃
+    if (m) {
+      const t = (clock.getElapsedTime() % 1.6) / 1.6; // 0..1 루프
+      m.scale.setScalar(1 + t * 2.4); // 확장
+      (m.material as THREE.MeshBasicMaterial).opacity = 0.4 * (1 - t); // 페이드아웃
+    }
+    // 화살표는 course-up 그룹 회전을 상쇄 → 지도가 돌아도 화살표는 항상 화면 위(진행방향) 고정.
+    const c = counterRef.current;
+    if (c) c.rotation.y = -courseUpYRef.current;
   });
 
   return (
@@ -321,9 +378,12 @@ function MyMarker({ point }: { point: GroundPoint }) {
           depthWrite={false}
         />
       </mesh>
-      {/* 화살표 마커 이미지 — 항상 카메라를 향함 */}
-      <Billboard position={[0, 0.03, 0]}>
-        <mesh>
+      {/* 화살표 — 지면과 평행(수평)으로 눕힘. course-up 상쇄 그룹 안에 둬 지도가 돌아도 화면 위 고정.
+          rotation X=-90° 로 눕히면 이미지 위쪽(tip)이 -Z(화면 위/진행방향)를 향한다.
+          레이더 원(y=0.003)과 거의 같은 높이(y=0.0032)에 둬 카메라를 눕혀도 중심이 어긋나 보이지 않게.
+          (z-fighting 은 둘 다 depthWrite=false + 선언 순서로 화살표가 위에 그려져 무해.) */}
+      <group ref={counterRef}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0032, 0]}>
           <planeGeometry args={[0.045, 0.047]} />
           <meshBasicMaterial
             map={texture}
@@ -332,7 +392,7 @@ function MyMarker({ point }: { point: GroundPoint }) {
             depthWrite={false}
           />
         </mesh>
-      </Billboard>
+      </group>
     </group>
   );
 }

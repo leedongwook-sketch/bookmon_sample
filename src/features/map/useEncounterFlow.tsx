@@ -9,7 +9,7 @@ import {
   isDismissed,
   hasArResult,
 } from "./arBridge";
-import { mountAr } from "./arInject";
+import { mountAr, isArActive } from "./arInject";
 import { getMonstersInRange, ARRIVAL_RADIUS_M } from "./geo";
 import { isMobileDevice } from "@/lib/device";
 import { CollectionLayer } from "@/features/collection/CollectionLayer";
@@ -83,7 +83,10 @@ export function useEncounterFlow({
   // 조우 시작: 화면을 흰색으로 덮으며(0.7초) `/ar/shooting/`로 전체 이동. (실 도착/테스트 클릭 공용)
   const beginEncounter = useCallback(
     (game: Game) => {
-      if (leaving || transitionTimer.current) return; // 이미 진행 중이면 무시
+      if (transitionTimer.current) return; // 흰 페이드 인 진행 중이면 무시
+      // leaving 이 true 여도 AR 이 실제로 안 떠 있으면(embedded) 조우가 비정상 종료돼 잠금이 고착된 것
+      //   → 새 조우를 허용(복구). AR 이 진짜 진행 중일 때만 무시한다. (navigate 모드는 항상 무시)
+      if (leaving && (!AR_EMBEDDED || isArActive())) return;
 
       // ⚠ [테스트] AR 스킵 → 포획 성공으로 간주하고 바로 도감(퀴즈는 이제 AR 안에서 진행).
       //   기기 체크·흰 페이드·AR 이동을 건너뛴다(PC 테스트용). 원복: SKIP_AR_TO_QUIZ=false.
