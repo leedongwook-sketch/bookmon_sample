@@ -210,7 +210,16 @@
     align-items: center; justify-content: center;
   }
   #countdown.show { display: flex; }
-  #countdown-img { height: min(42vh, 340px); width: auto; }
+  /* Per-digit optical-centering shift lives on a WRAPPER (static), separate from
+     the img's scale animation, so the correction always holds. Each glyph's
+     visual mass is off-centre in its own image (esp. "1", ~15% right).
+     translateX(%) is relative to the wrapper's own width (= img width), so it
+     stays correct at any size. */
+  #countdown .cd-inner { display: block; transform: translateX(var(--cd-shift, 0%)); }
+  #countdown.n1 .cd-inner { --cd-shift: -15%; }
+  #countdown.n2 .cd-inner { --cd-shift: -2%; }
+  #countdown.n3 .cd-inner { --cd-shift: -5%; }
+  #countdown-img { height: min(42vh, 340px); width: auto; display: block; }
   #countdown.show #countdown-img { animation: count-pop 1s ease-out; }
   @keyframes count-pop {
     0%   { transform: scale(0.35); opacity: 0; }
@@ -453,7 +462,7 @@
   .q-result { position:absolute; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; pointer-events:none; }
   .q-result .mark { font-size:14cqw; font-weight:700; line-height:1; animation:q-answer-pop 520ms cubic-bezier(.34,1.56,.64,1) both; text-shadow:0 3px 0 rgba(0,0,0,.18),0 6px 10px rgba(0,0,0,.25); }
   .q-confetti { position:absolute; left:50%; top:50%; width:0; height:0; }
-  .q-confetti span { position:absolute; left:0; top:0; display:block; width:7px; height:10px; border-radius:1px; animation:q-confetti-fly 900ms ease-out forwards; }</style><div id="boot-overlay"><span class="loading">loading<span class="dots"></span></span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="result-white" aria-hidden="true"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="/ar/shooting/assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="/ar/shooting/assets/cap_white.png" alt=""></div><img id="discover-fx" src="/ar/shooting/assets/ar_effect1.png" alt=""><div id="countdown"><img id="countdown-img" src="/ar/shooting/assets/start_3.png" alt=""></div><img id="start-banner" src="/ar/shooting/assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-zone"></div></div><div id="cap-frame"></div><span id="cap-indi"><img src="/ar/shooting/assets/indi.png" alt=""></span><span id="cap-center" aria-hidden="true"><span id="cap-cam-icon"><svg viewBox="0 0 24 24" fill="#f2dc32"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a3a12"></circle></svg> </span><span class="t"><span id="cap-secs">30</span>초</span></span></div><button id="cap-camera" type="button" aria-label="capture"><img src="/ar/shooting/assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
+  .q-confetti span { position:absolute; left:0; top:0; display:block; width:7px; height:10px; border-radius:1px; animation:q-confetti-fly 900ms ease-out forwards; }</style><div id="boot-overlay"><span class="loading">loading<span class="dots"></span></span><p class="desktop-hint">이 콘텐츠는 <b>모바일 기기</b>의 카메라가 필요합니다.<br>휴대폰 브라우저에서 이 페이지를 열어주세요.</p></div><div id="shot-flash"></div><div id="shutter-blades" aria-hidden="true"><span class="blade top"></span><span class="blade bot"></span></div><div id="shutter-flash"></div><div id="result-fx" aria-hidden="true"></div><div id="result-white" aria-hidden="true"></div><div id="game-ui" data-phase="none"><img id="xh-kill" src="/ar/shooting/assets/kill_white.png" alt=""><div id="xh-cap"><span class="corner tl"></span><span class="corner tr"></span> <span class="corner bl"></span><span class="corner br"></span> <img id="xh-cap-center" src="/ar/shooting/assets/cap_white.png" alt=""></div><img id="discover-fx" src="/ar/shooting/assets/ar_effect1.png" alt=""><div id="countdown"><span class="cd-inner"><img id="countdown-img" src="/ar/shooting/assets/start_3.png" alt=""></span></div><img id="start-banner" src="/ar/shooting/assets/start.png" alt=""><div id="cap-progress"></div><div id="cap-bar"><div id="cap-gauge"><div id="cap-track"><div id="cap-zone"></div></div><div id="cap-frame"></div><span id="cap-indi"><img src="/ar/shooting/assets/indi.png" alt=""></span><span id="cap-center" aria-hidden="true"><span id="cap-cam-icon"><svg viewBox="0 0 24 24" fill="#f2dc32"><path d="M9 3l-1.2 1.6H4.5A1.5 1.5 0 0 0 3 6.1v11A1.5 1.5 0 0 0 4.5 18.6h15A1.5 1.5 0 0 0 21 17.1v-11a1.5 1.5 0 0 0-1.5-1.5h-3.3L15 3H9z"></path><circle cx="12" cy="11.5" r="3.4" fill="#1a3a12"></circle></svg> </span><span class="t"><span id="cap-secs">30</span>초</span></span></div><button id="cap-camera" type="button" aria-label="capture"><img src="/ar/shooting/assets/cam_normal.png" alt=""></button></div></div><script>// === iOS motion-sensor permission (preempt 8th Wall's built-in prompt) =====
   // World-tracking AR needs the gyroscope/accelerometer. On iOS 13+ that
   // permission can only be requested from inside a user gesture, so the engine
   // otherwise shows its own "AR requires access to device motion sensors" prompt
@@ -780,12 +789,16 @@
   })()
 
   // Combined readiness: UI images + monster sprite sheets (set by target-monster
-  // once it has chroma-keyed them). Both the overlay fade AND the game start wait
-  // on this, so nothing runs before its images are decoded. Never rejects.
+  // once it has chroma-keyed them) + a MINIMUM loading-screen time. Both the
+  // overlay fade AND the game start wait on this, so nothing runs before its
+  // images are decoded — and the loading screen always shows for at least
+  // LOADING_MIN_MS so it never flickers away instantly on a warm cache.
+  var LOADING_MIN_MS = 1000
   window.__bookmonWhenReady = function () {
     var ps = []
     try { if (window.__bookmonWhenAssetsReady) ps.push(window.__bookmonWhenAssetsReady()) } catch (e) {}
     try { if (window.__bookmonWhenSpritesReady) ps.push(window.__bookmonWhenSpritesReady()) } catch (e) {}
+    ps.push(new Promise(function (r) { try { setTimeout(r, LOADING_MIN_MS) } catch (e) { r() } }))
     return Promise.all(ps).catch(function () {})
   };
 
@@ -920,6 +933,9 @@
       if (!countdown || !countdownImg) return
       // txt is '3' | '2' | '1' → the matching countdown banner image.
       countdownImg.src = '/ar/shooting/assets/start_' + txt + '.png'
+      // Per-digit optical-centering class (n1/n2/n3) → CSS --cd-shift.
+      countdown.classList.remove('n1', 'n2', 'n3')
+      countdown.classList.add('n' + txt)
       countdown.classList.add('show')
       // Restart the pop animation for each number.
       countdownImg.style.animation = 'none'
