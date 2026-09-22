@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { isIOS, isStandalone } from "@/lib/device";
 
-// iOS 는 "홈 화면에 추가"를 코드로 띄울 수 없어(설치 프롬프트 API 없음, Fullscreen 미지원),
-// 방법을 눈에 띄게 안내한다. iOS + 미설치(standalone 아님)일 때만 1회 노출(닫으면 기억).
+// iOS 홈 화면 추가 안내 — iOS 는 전체화면·가로잠금 API 가 없어, 설치(홈 화면 추가) 시에만 완전 가로
+//   전체화면이 된다. 그래서 방법을 안내한다. (Android 는 전체화면+orientation.lock 으로 이미 되므로
+//   설치 안내 불필요.) iOS + 미설치(standalone 아님)일 때만 1회 노출(닫으면 기억).
 const DISMISS_KEY = "bookmon-ios-guide-dismissed";
 
 export function IosInstallGuide() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (!isIOS() || isStandalone()) return;
+    if (!isIOS() || isStandalone()) return; // iOS 미설치일 때만
     let dismissed = false;
     try {
       dismissed = localStorage.getItem(DISMISS_KEY) === "1";
@@ -46,13 +47,11 @@ export function IosInstallGuide() {
           <br />
           <b>&lsquo;홈 화면에 추가&rsquo;</b>를 선택해 주세요.
         </p>
-
         {/* 하단 공유 버튼을 가리키는 화살표(아이폰 Safari 공유는 화면 하단) */}
         <div className="mt-3 flex items-center justify-center gap-2 text-[#2f6fd0]">
           <ShareIcon />
           <span className="text-xl">↓</span>
         </div>
-
         <button
           type="button"
           onClick={close}

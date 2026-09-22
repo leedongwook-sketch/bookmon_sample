@@ -15,15 +15,32 @@ import { useOrientation } from "@/hooks/useOrientation";
 export function PortraitGuard({ children }: { children: ReactNode }) {
   const orientation = useOrientation();
 
-  // 지원 기기(주로 Android/설치형)에서 best-effort 가로 잠금.
+  // 가로 잠금 — 마운트 시 + 회전/전체화면 변화 때마다 재시도(Android 전체화면에서 회전 방지 강화).
+  //   전체화면/설치형에서만 실제로 먹고, 브라우저 탭·iOS 는 거부됨(그 경우 아래 force-landscape 로 커버).
   useEffect(() => {
     const so = screen.orientation as ScreenOrientation & {
       lock?: (orientation: string) => Promise<void>;
     };
-    so?.lock?.("landscape").catch(() => {});
+    const relock = () => {
+      try {
+        so?.lock?.("landscape").catch(() => {});
+      } catch {
+        /* 미지원/거부 → 무시 */
+      }
+    };
+    relock();
+    // 세로로 돌리려 하면(orientationchange) 즉시 다시 가로로 잠가 튕겨 돌아오게 한다.
+    so?.addEventListener?.("change", relock);
+    window.addEventListener("orientationchange", relock);
+    document.addEventListener("fullscreenchange", relock);
+    return () => {
+      so?.removeEventListener?.("change", relock);
+      window.removeEventListener("orientationchange", relock);
+      document.removeEventListener("fullscreenchange", relock);
+    };
   }, []);
 
-  // 세로일 때만 강제회전 클래스 토글(가로면 #app-rotator 는 display:contents 라 영향 없음).
+  // 세로일 때만 강제회전 클래스 토글(잠금 미지원 환경 폴백). 가로면 #app-rotator 는 display:contents.
   useEffect(() => {
     const on = orientation === "portrait";
     document.body.classList.toggle("force-landscape", on);

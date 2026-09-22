@@ -110,6 +110,15 @@ button,
   min-width: 48px;
 }
 
+/* 스크롤바 숨김 — 스크롤은 되지만 스크롤바가 레이아웃 공간을 먹지 않게(가로 스크롤 영역 세로 잘림 방지). */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* 퀴즈 결과 마크(O/X) 팝업 — 작게 시작해 살짝 튕기며 커짐 */
 @keyframes quiz-pop {
   from {
