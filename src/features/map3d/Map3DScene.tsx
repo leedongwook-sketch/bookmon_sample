@@ -93,10 +93,9 @@ export function Map3DScene({
 
       {/* 텍스처(SVG 지면)·폰트(Text) 비동기 로드 중 상위로 suspend가 새지 않게 경계. */}
       <Suspense fallback={null}>
-        {/* course-up: 지면+마커를 헤딩에 맞춰 회전 → 내가 보는 방향이 항상 화면 위.
-            내 위치 화살표만은 이 회전을 상쇄해 '항상 화면 위(진행방향)'를 가리키게 한다
-            (courseUpYRef 공유). 지도/몬스터는 함께 돌고 화살표만 화면 고정. */}
-        <CourseUpGroup heading={heading} yRef={courseUpYRef}>
+        {/* 지도는 고정(북쪽 위) — course-up(휴대폰 방향으로 지도 회전) 비활성이라 heading={null}.
+            대신 내 위치 화살표만 heading 으로 회전해 방향을 가리킨다(아래 MyMarker). */}
+        <CourseUpGroup heading={null} yRef={courseUpYRef}>
           <Ground imageUrl={imageUrl} layout={layout} />
 
           {/* 몬스터 마커 */}
@@ -112,8 +111,8 @@ export function Map3DScene({
             );
           })}
 
-          {/* 내 위치 마커 — course-up 회전 상쇄(화살표는 화면 위 고정). */}
-          <MyMarker point={layout.me} courseUpYRef={courseUpYRef} />
+          {/* 내 위치 마커 — 화살표가 heading 으로 회전해 방향을 가리킨다(지도는 고정). */}
+          <MyMarker point={layout.me} heading={heading} />
         </CourseUpGroup>
       </Suspense>
 
@@ -364,16 +363,18 @@ function BookSpriteFallback({ onTrigger }: { onTrigger?: () => void }) {
 }
 
 // 내 위치 마커 — 파란 레이더 번짐(지면 확장) + 내비게이션 화살표 마커 이미지(지면에 수평).
+//   지도는 고정(course-up 미사용)이고, 화살표만 나침반 heading 에 맞춰 Y축으로 회전해 방향을 가리킨다.
+//   heading null(센서 없음/데스크톱)이면 화면 위(북쪽) 고정.
 function MyMarker({
   point,
-  courseUpYRef,
+  heading,
 }: {
   point: GroundPoint;
-  courseUpYRef: React.RefObject<number>;
+  heading: number | null;
 }) {
   const texture = useTexture("/images/mk_player.png");
   const radarRef = useRef<THREE.Mesh>(null);
-  const counterRef = useRef<THREE.Group>(null); // course-up 회전 상쇄 그룹(화살표 화면 위 고정)
+  const arrowRef = useRef<THREE.Group>(null); // 화살표 회전 그룹(heading 반영)
 
   useFrame(({ clock }) => {
     // 레이더 번짐: 지면 원이 중심에서 퍼지며 사라지는 것을 반복(2D animate-ping과 동일 감).
@@ -383,9 +384,13 @@ function MyMarker({
       m.scale.setScalar(1 + t * 2.4); // 확장
       (m.material as THREE.MeshBasicMaterial).opacity = 0.4 * (1 - t); // 페이드아웃
     }
-    // 화살표는 course-up 그룹 회전을 상쇄 → 지도가 돌아도 화살표는 항상 화면 위(진행방향) 고정.
-    const c = counterRef.current;
-    if (c) c.rotation.y = -courseUpYRef.current;
+    // 화살표를 heading(시계방향, 도)에 맞춰 Y축 회전 → 지면 위에서 진행방향을 가리킨다.
+    //   지도 평면상 -Z(화면 위)가 북쪽 기준. heading 시계방향 → Y축 -회전. 지수감쇠로 부드럽게.
+    const a = arrowRef.current;
+    if (a && heading !== null) {
+      const target = -THREE.MathUtils.degToRad(heading);
+      a.rotation.y += (target - a.rotation.y) * 0.2;
+    }
   });
 
   return (
@@ -400,11 +405,10 @@ function MyMarker({
           depthWrite={false}
         />
       </mesh>
-      {/* 화살표 — 지면과 평행(수평)으로 눕힘. course-up 상쇄 그룹 안에 둬 지도가 돌아도 화면 위 고정.
-          rotation X=-90° 로 눕히면 이미지 위쪽(tip)이 -Z(화면 위/진행방향)를 향한다.
-          레이더 원(y=0.003)과 거의 같은 높이(y=0.0032)에 둬 카메라를 눕혀도 중심이 어긋나 보이지 않게.
-          (z-fighting 은 둘 다 depthWrite=false + 선언 순서로 화살표가 위에 그려져 무해.) */}
-      <group ref={counterRef}>
+      {/* 화살표 — 지면과 평행(수평)으로 눕힘. arrowRef 그룹이 heading 만큼 Y축 회전해 방향을 가리킨다.
+          rotation X=-90° 로 눕히면 이미지 위쪽(tip)이 -Z(북쪽/진행방향)를 향한다.
+          레이더 원(y=0.003)과 거의 같은 높이(y=0.0032)에 둬 카메라를 눕혀도 중심이 어긋나 보이지 않게. */}
+      <group ref={arrowRef}>
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.0032, 0]}>
           <planeGeometry args={[0.045, 0.047]} />
           <meshBasicMaterial

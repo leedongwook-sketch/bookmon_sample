@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/gameStore";
-// useCompassHeading 은 현재 비활성(휴대폰 방향 회전 제거) — 원복 시 사용하므로 import 유지.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useMyPosition, useCompassHeading } from "@/features/map/useMyPosition";
 import { useEncounterFlow } from "@/features/map/useEncounterFlow";
 import { isWithinEventBounds } from "@/features/map/geo";
@@ -65,11 +63,10 @@ export function Map3DView({
   modeSwitch?: ModeSwitch;
 }) {
   const isPractice = variant === "practice";
-  // 나침반 헤딩(연속각) — course-up: 지면을 반대로 돌려 내가 보는 방향이 항상 화면 위.
-  // ⚠ [비활성] 휴대폰 방향(나침반)에 따라 지도·하늘이 도는 기능 제거(요청). 드래그 회전은 유지.
-  //   원복하려면 아래 useCompassHeading() 사용 줄로 되돌리면 된다.
-  // const heading = useCompassHeading();
-  const heading = null;
+  // 나침반 헤딩(연속각) — 이제 '지도 회전'이 아니라 '내 위치 화살표 방향'에만 쓴다.
+  //   Scene 내부에서 지도(course-up)는 heading={null} 로 고정하고, 화살표(MyMarker)만 heading 으로 회전.
+  //   → 휴대폰 방향으로 지도가 도는 기능은 제거된 상태이고, 화살표만 방향을 가리킨다.
+  const heading = useCompassHeading();
   const setGroundLayout = useGameStore((s) => s.setGroundLayout);
   const groundLayout = useGameStore((s) => s.groundLayout);
   const collection = useGameStore((s) => s.collection);
