@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useGameStore } from "@/store/gameStore";
+// useCompassHeading 은 현재 비활성(휴대폰 방향 회전 제거) — 원복 시 사용하므로 import 유지.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { useMyPosition, useCompassHeading } from "@/features/map/useMyPosition";
 import { useEncounterFlow } from "@/features/map/useEncounterFlow";
 import { isWithinEventBounds } from "@/features/map/geo";
@@ -64,41 +66,16 @@ export function Map3DView({
 }) {
   const isPractice = variant === "practice";
   // 나침반 헤딩(연속각) — course-up: 지면을 반대로 돌려 내가 보는 방향이 항상 화면 위.
-  const heading = useCompassHeading();
+  // ⚠ [비활성] 휴대폰 방향(나침반)에 따라 지도·하늘이 도는 기능 제거(요청). 드래그 회전은 유지.
+  //   원복하려면 아래 useCompassHeading() 사용 줄로 되돌리면 된다.
+  // const heading = useCompassHeading();
+  const heading = null;
   const setGroundLayout = useGameStore((s) => s.setGroundLayout);
   const groundLayout = useGameStore((s) => s.groundLayout);
   const collection = useGameStore((s) => s.collection);
 
-  // 하늘 배경(구름) — 지도 회전에 맞춰 좌우로 패닝. React state 를 거치면 r3f useFrame 루프와
-  //   따로 놀아 1초쯤 지연되므로, 배경 DOM 을 ref 로 직접(매 프레임) 갱신해 즉각 따라오게 한다.
-  //   heading(폰 방향)은 state 라 ref 로 미러하고, azimuth(드래그)는 Scene 의 useFrame 이 직접 반영.
-  const backCloudRef = useRef<HTMLDivElement>(null);
-  const frontCloudRef = useRef<HTMLDivElement>(null);
-  const headingRef = useRef(0);
-  const azimuthRef = useRef(0); // 마지막 드래그 방위각(도)
-
-  // 배경 패닝 즉시 갱신 — skyRot = -(heading) + azimuth. 뒤 구름 ×3 / 앞 구름 ×5(패럴랙스).
-  const applySkyPan = useCallback(() => {
-    const skyRot = -headingRef.current + azimuthRef.current;
-    if (backCloudRef.current)
-      backCloudRef.current.style.backgroundPositionX = `${skyRot * 3}px`;
-    if (frontCloudRef.current)
-      frontCloudRef.current.style.backgroundPositionX = `${skyRot * 5}px`;
-  }, []);
-  // Scene(useFrame)이 매 프레임 azimuth(도)를 넘겨줌 — ref 갱신 후 즉시 DOM 반영(React 우회).
-  const onAzimuth = useCallback(
-    (deg: number) => {
-      azimuthRef.current = deg;
-      applySkyPan();
-    },
-    [applySkyPan]
-  );
-
-  // heading(폰 방향)만 바뀌어도 배경 갱신(드래그 없이 서 있을 때).
-  useEffect(() => {
-    headingRef.current = heading ?? 0;
-    applySkyPan();
-  }, [heading, applySkyPan]);
+  // 하늘 배경은 이제 지평선 파노라마(3D fog + 서라운드 지면 + CSS 그라데)라, 지도가 회전해도
+  //   좌우 방향에 관계없이 동일(수평 균일)해 별도 패닝이 필요 없다(구름 패닝 로직 제거).
 
   // 순차 진행(2D와 동일): 미시도(collection 미기록) 몬스터 중 **첫 1개만** 표시.
   //   마커/조우/layout 공통이라 3D도 한 번에 한 마리씩만 노출된다.
@@ -141,48 +118,29 @@ export function Map3DView({
   // 첫 진입엔 이 둘이 비동기로 채워지므로, 준비 전엔 흰 화면이 아니라 로딩 폴백을 보인다.
   return (
     <div className="relative isolate h-[100dvh] w-full touch-none select-none overflow-hidden bg-[#e8f4ff]">
-      {/* 하늘·구름 배경 — Canvas 는 투명이라 지도(평면) 주변에 이 배경이 비친다(지도 뒤 -z-10).
-          지도가 course-up/드래그로 좌우 회전하면 하늘 구름을 '좌우로 패닝'(background-position-x 이동)한다.
-          ★rotate 대신 패닝 → 구름이 절대 상하로 뒤집히지 않고 좌우로만 흐른다. repeat-x 라 빈틈 없음. */}
+      {/* 하늘 배경(지평선 파노라마) — Canvas 는 투명이라 지도 평면 주변에 비친다(지도 뒤 -z-10).
+          위=파란 하늘 → 아래로 갈수록 옅은 안개(베이지)로 그라데. 하단 안개색(#e8ddc5)은
+          Map3DScene 의 fog(HAZE)와 동일 → 3D 지평선과 자연스럽게 이어진다. */}
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        {/* 하늘 그라데(고정) */}
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(180deg, #4bb4f0 0%, #7fccf6 42%, #bfe6fb 100%)" }}
-        />
-        {/* 뒤 구름 띠 — 위쪽(y 8%), 적게 이동(멀리 있는 느낌). position-x 는 ref 로 매 프레임 직접 갱신.
-            짧은 transition 으로 프레임 간·방향전환을 부드럽게 보간(지연은 무시할 수준). */}
-        <div
-          ref={backCloudRef}
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "url(/images/clouds-strip.png)",
-            backgroundRepeat: "repeat-x",
-            backgroundSize: "340px 106px",
-            backgroundPositionY: "8%",
-            opacity: 0.5,
-            transition: "background-position-x 120ms ease-out",
-          }}
-        />
-        {/* 앞 구름 띠 — 중단(y 40%), 많이 이동(가까운 느낌 = 패럴랙스). */}
-        <div
-          ref={frontCloudRef}
-          className="absolute inset-0"
-          style={{
-            backgroundImage: "url(/images/clouds-strip.png)",
-            backgroundRepeat: "repeat-x",
-            backgroundSize: "230px 72px",
-            backgroundPositionY: "40%",
-            opacity: 0.85,
-            transition: "background-position-x 120ms ease-out",
-          }}
-        />
-        {/* 비네트(고정) — 위·아래 은은한 음영 */}
+        {/* 하늘 그라데 */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(40,110,170,0.28) 0%, rgba(40,110,170,0) 26%, rgba(255,246,225,0) 72%, rgba(255,246,225,0.5) 100%)",
+              "linear-gradient(180deg, #5bb3ec 0%, #86cbf0 34%, #c3e2ec 60%, #e8ddc5 82%, #e8ddc5 100%)",
+          }}
+        />
+        {/* 구름 — 하늘(지평선 위) 상단 영역에만 떠서 천천히 흐른다. 지평선(화면 ~33%) 위쪽에 배치.
+            cloud-drift 키프레임이 background-position(x=--cloud-span 이동, y=--cloud-y)을 애니메이션. */}
+        <div
+          className="absolute inset-x-0 top-0 h-[24%] animate-[cloud-drift_80s_linear_infinite]"
+          style={{
+            backgroundImage: "url(/images/clouds-strip.png)",
+            backgroundRepeat: "repeat-x",
+            backgroundSize: "300px 92px",
+            opacity: 0.72,
+            ["--cloud-span" as string]: "300px",
+            ["--cloud-y" as string]: "20%",
           }}
         />
       </div>
@@ -195,8 +153,6 @@ export function Map3DView({
           layout={groundLayout}
           games={activeGames}
           heading={heading}
-          // 드래그(오빗) 방위각 → 하늘 배경 즉시 패닝(React 우회, ref 직접 갱신).
-          onAzimuth={onAzimuth}
           // 체험모드: 책 3D 모델 탭 → 조우 시작(수동 트리거). 행사모드는 미전달(GPS 근접만).
           onMonsterTrigger={isPractice ? beginEncounter : undefined}
         />

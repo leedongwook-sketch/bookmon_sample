@@ -15,6 +15,15 @@ import type { Game, GroundLayout, GroundPoint } from "@/types";
 const SKYBLUE = "#019cf4";
 const GROUND_TINT = "#fff6e1"; // 아이보리 — 지면 살짝 밝게
 
+// 지평선 파노라마 — 지도 주변에 큰 지면을 깔고 fog 로 멀리를 안개(지평선 색)로 흐려
+//   내비게이션 지도처럼 '지면이 지평선으로 사라지는' 원근을 만든다. (참고 이미지)
+const HAZE = "#e8ddc5"; // 지평선 안개색(따뜻한 베이지) — CSS 하늘 그라데 하단과 맞춤
+const HORIZON_GROUND = "#dbe7c4"; // 서라운드 지면색(지도 잔디 톤) — 지도 밖을 채운다
+const FOG_NEAR = 0.8; // 이 거리부터 안개 시작(지도 ±0.5 는 안 닿아 선명)
+const FOG_FAR = 2.2; // 원판 가장자리(지평선) 부근에서 안개색으로 blend → 하늘과 부드럽게 이어짐
+// 서라운드 지면 원판 반지름 = 지평선 거리(작을수록 가깝다). 정밀분석: R=2 → 지평선 화면 33%(더 내려옴).
+const HORIZON_RADIUS = 2;
+
 // 카메라 틸트/오빗 제한 (지면 아래로 뒤집히지 않게)
 const MIN_POLAR = Math.PI / 6; // 위에서 30° 이상 눕히지 않음(너무 top-down 방지)
 const MAX_POLAR = Math.PI / 2.6; // 지면 아래로 못 감(수평 근처에서 멈춤)
@@ -62,6 +71,19 @@ export function Map3DScene({
       {/* WebGL 컨텍스트 lost/restored 처리 — StrictMode 이중마운트/컨텍스트 한도 초과로
           컨텍스트가 죽어도 흰 화면 대신 복구 후 재렌더되게 한다. */}
       <ContextLossGuard />
+
+      {/* 지평선 안개 — 멀리 있는 서라운드 지면을 안개색으로 흐려 지평선을 만든다.
+          지도/마커는 fog={false}(선명), 서라운드 지면만 fog 적용. */}
+      <fog attach="fog" args={[HAZE, FOG_NEAR, FOG_FAR]} />
+
+      {/* 서라운드 지면 — 지도 밖을 원판으로 채운다. 원판 '반지름'이 곧 지평선 거리(작을수록 가깝다).
+          fog 가 화면 지평선을 지배하지 못해(셰이더 미반영), geometry(원 반지름)로 직접 제어한다.
+          원(circle)이라 드래그 회전 시 각진 모서리 없음. 가장자리는 fog(작동 시)로 부드럽게 blend.
+          월드 고정(드래그로 안 돎), 지도(y=0)보다 살짝 아래(y=-0.001)로 z-fighting 방지. */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.001, 0]}>
+        <circleGeometry args={[HORIZON_RADIUS, 64]} />
+        <meshBasicMaterial color={HORIZON_GROUND} toneMapped={false} />
+      </mesh>
 
       {/* 조명 — GLB 책 모델(MeshStandard)만 반응(지면·마커는 meshBasic이라 무관).
           책이 어두워 보여 앰비언트↑ + 주광·반대쪽 채움광으로 그늘을 밝게 띄운다. */}
@@ -214,9 +236,9 @@ function Ground({ imageUrl, layout }: { imageUrl: string; layout: GroundLayout }
 
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      {/* rotateX(-90°) 후 geometry의 (x,y)가 world (x,z)로 매핑됨 */}
+      {/* rotateX(-90°) 후 geometry의 (x,y)가 world (x,z)로 매핑됨. fog={false}: 지도는 안개 면제(선명). */}
       <planeGeometry args={[layout.planeWidth, layout.planeDepth]} />
-      <meshBasicMaterial map={texture} color={GROUND_TINT} toneMapped={false} />
+      <meshBasicMaterial map={texture} color={GROUND_TINT} toneMapped={false} fog={false} />
     </mesh>
   );
 }
